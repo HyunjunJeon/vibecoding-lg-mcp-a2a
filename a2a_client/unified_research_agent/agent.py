@@ -1,15 +1,14 @@
 """UnifiedResearch Agent - Google ADK 표준 에이전트 정의"""
 import os
+from dotenv import load_dotenv
 from google.adk.agents import Agent
 from google.adk.models.lite_llm import LiteLlm
-from dotenv import load_dotenv
+
+from .tools import monitor_progress, save_result, plan_research, summarize_findings
+from .a2a_tools import call_planning_agent, call_research_agent, call_report_writing_agent, orchestrate_research
 
 # 환경 변수 로드
 load_dotenv()
-
-# 도구 함수 import
-from .tools import monitor_progress, save_result, plan_research, summarize_findings
-from .a2a_tools import call_planning_agent, call_research_agent, call_report_writing_agent, orchestrate_research
 
 # Azure OpenAI 설정
 azure_config = {

@@ -10,7 +10,7 @@ COPY . .
 
 # Install build dependencies and runtime dependencies
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends gcc python3-dev libpq-dev && \
+    apt-get install -y --no-install-recommends gcc python3-dev libpq-dev curl && \
     pip install --no-cache-dir pip -U && \
     pip install --no-cache-dir hatch && \
     pip install --no-cache-dir '.[dev]' && \

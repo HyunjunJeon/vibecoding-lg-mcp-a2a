@@ -7,6 +7,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     curl \
     git \
+    supervisor \
     && rm -rf /var/lib/apt/lists/*
 
 # Python 패키지 설치
@@ -22,12 +23,34 @@ COPY agents ./agents
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
+# Supervisor 설정 파일 생성
+RUN echo "[supervisord]\n\
+nodaemon=true\n\
+\n\
+[program:adk-web]\n\
+command=uv run adk web /app/a2a_client --port 8500 --host 0.0.0.0\n\
+autostart=true\n\
+autorestart=true\n\
+stdout_logfile=/dev/stdout\n\
+stdout_logfile_maxbytes=0\n\
+stderr_logfile=/dev/stderr\n\
+stderr_logfile_maxbytes=0\n\
+\n\
+[program:api-server]\n\
+command=uv run uvicorn a2a_client.unified_research_agent.api_server:app --host 0.0.0.0 --port 8090 --reload\n\
+autostart=true\n\
+autorestart=true\n\
+stdout_logfile=/dev/stdout\n\
+stdout_logfile_maxbytes=0\n\
+stderr_logfile=/dev/stderr\n\
+stderr_logfile_maxbytes=0" > /etc/supervisor/conf.d/supervisord.conf
+
 # 포트 노출
-EXPOSE 8000
+EXPOSE 8500 8090
 
 # 헬스체크
 HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:8090/health || exit 1
 
-# 실행
-CMD ["uv", "run", "uvicorn", "a2a_client.unified_research_agent:app", "--host", "0.0.0.0", "--port", "8000"]
+# Supervisor로 두 서비스 동시 실행
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

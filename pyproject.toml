@@ -3,7 +3,7 @@ name = "ttimes-guide-coding"
 version = "0.1.0"
 description = "티타임즈 바이브 코딩 시연 예제"
 authors = [{ name = "Hyunjun Jeon", email = "jeonhj920@gmail.com" }]
-readme = "README.md"
+# readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "a2a-sdk>=0.2.9",

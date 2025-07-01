@@ -80,8 +80,7 @@ services:
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=3000
     depends_on:
-      langconnect:
-        condition: service_healthy
+      - langconnect
     networks:
       - ttimes_network
     restart: unless-stopped
@@ -108,12 +107,12 @@ services:
       - TAVILY_API_KEY=${TAVILY_API_KEY}
       - LANGCONNECT_URL=http://langconnect:8080
       - MCP_SERVER_URL=http://all-search-mcp:3000
+      - RESEARCH_AGENT_PORT=8001
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=8001
       - LOG_LEVEL=INFO
     depends_on:
-      all-search-mcp:
-        condition: service_healthy
+      - all-search-mcp
     networks:
       - ttimes_network
     restart: unless-stopped
@@ -123,7 +122,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.agent
     container_name: ttimes_planning_agent
-    command: ["uv", "run", "python", "-m", "agents.a2a_servers.planning_a2a_server_v3"]
+    command: ["uv", "run", "python", "-m", "agents.a2a_servers.planning_a2a_server"]
     ports:
       - "8003:8003"
     environment:
@@ -131,6 +130,7 @@ services:
       - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
       - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION}
       - AZURE_OPENAI_DEPLOYMENT_NAME=${AZURE_OPENAI_DEPLOYMENT_NAME}
+      - PLANNING_AGENT_PORT=8003
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=8003
       - LOG_LEVEL=INFO
@@ -152,6 +152,7 @@ services:
       - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION}
       - AZURE_OPENAI_DEPLOYMENT_NAME=${AZURE_OPENAI_DEPLOYMENT_NAME}
       - POSTGRES_URL=postgresql://ttimes:ttimes123@postgres:5432/ttimes_guide
+      - REPORT_WRITING_AGENT_PORT=8004
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=8004
       - LOG_LEVEL=INFO
@@ -189,6 +190,40 @@ services:
     networks:
       - ttimes_network
     restart: unless-stopped
+
+  # UnifiedResearch Agent (Google ADK)
+  unified-research-agent:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.adk
+    container_name: ttimes_unified_research_agent
+    ports:
+      - "8500:8500"  # Google ADK UI
+      - "8090:8090"  # API Server
+    environment:
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION}
+      - AZURE_OPENAI_DEPLOYMENT_NAME=${AZURE_OPENAI_DEPLOYMENT_NAME}
+      - PLANNING_AGENT_URL=http://planning-agent:8003/
+      - RESEARCH_AGENT_URL=http://research-agent:8001/
+      - REPORT_WRITING_AGENT_URL=http://report-writing-agent:8004/
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - SERVER_HOST=0.0.0.0
+      - LOG_LEVEL=INFO
+    depends_on:
+      - research-agent
+      - planning-agent
+      - report-writing-agent
+    networks:
+      - ttimes_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
 
 

@@ -39,15 +39,15 @@ sleep 3
 
 # 3. A2A 서버들 시작
 echo "\n3. Planning Agent A2A 서버 시작 (포트 $PLANNING_AGENT_PORT)..."
-python agents/a2a_servers/planning_a2a_server.py &
+uv run python agents/a2a_servers/planning_a2a_server.py &
 sleep 2
 
 echo "\n4. Research Agent A2A 서버 시작 (포트 $RESEARCH_AGENT_PORT)..."
-python agents/a2a_servers/research_a2a_server.py &
+uv run python agents/a2a_servers/research_a2a_server.py &
 sleep 2
 
 echo "\n5. Report Writing Agent A2A 서버 시작 (포트 $REPORT_WRITING_AGENT_PORT)..."
-python agents/a2a_servers/report_writing_a2a_server.py &
+uv run python agents/a2a_servers/report_writing_a2a_server.py &
 sleep 2
 
 # 4. UnifiedResearch Agent API 서버 시작

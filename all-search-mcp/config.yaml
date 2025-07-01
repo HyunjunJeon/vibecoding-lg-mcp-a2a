@@ -1,0 +1,86 @@
+# All-Search MCP Server Configuration
+
+server:
+  name: "all-search-mcp"
+  version: "1.0.0"
+  description: "통합 검색 MCP 서버 - LangConnect와 Tavily 지원"
+
+# Transport 설정
+transport:
+  # stdio, sse, streamable_http 중 선택
+  type: "streamable_http"
+  
+  # HTTP transport 설정
+  http:
+    host: "0.0.0.0"
+    port: 8090
+    base_path: "/mcp"
+    
+  # SSE transport 설정  
+  sse:
+    host: "0.0.0.0"
+    port: 8091
+    path: "/events"
+
+# LangConnect 설정
+langconnect:
+  api_url: "${LANGCONNECT_API_URL:-http://localhost:8080}"
+  timeout: 30
+  max_retries: 3
+
+# Tavily 설정
+tavily:
+  api_key: "${TAVILY_API_KEY}"
+  api_url: "https://api.tavily.com/search"
+  default_search_depth: "basic"
+  max_results: 10
+
+# 검색 설정
+search:
+  # 기본 컬렉션
+  default_collection: "default"
+  
+  # 결과 캐싱
+  cache:
+    enabled: true
+    ttl: 300  # 5분
+    max_size: 1000
+    
+  # 동시 검색 제한
+  concurrent_limit: 10
+  
+  # 결과 후처리
+  post_processing:
+    remove_duplicates: true
+    min_relevance_score: 0.5
+
+# 로깅 설정
+logging:
+  level: "INFO"
+  format: "json"
+  file: "logs/mcp-server.log"
+
+# 보안 설정
+security:
+  # API 키 인증
+  api_key:
+    enabled: false
+    header_name: "X-API-Key"
+    
+  # CORS 설정
+  cors:
+    enabled: true
+    allowed_origins: ["*"]
+    allowed_methods: ["GET", "POST", "OPTIONS"]
+    allowed_headers: ["*"]
+
+# 메트릭 설정
+metrics:
+  enabled: true
+  endpoint: "/metrics"
+  
+# 헬스체크
+health:
+  enabled: true
+  endpoint: "/health"
+  check_interval: 30
