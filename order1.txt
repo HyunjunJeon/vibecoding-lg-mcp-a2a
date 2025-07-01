@@ -1,0 +1,202 @@
+현재 파악된 작업 계획을 바탕으로, 세부적으로 어떤 작업을 구성할 것인지에 대한 계획이 필요합니다. 크게는 1. LangGraph 에이전트 
+개발 및 LangGraph Platform(cli: langgraph-dev) 로의 사람에 의한 테스트 2. MCP 서버 개발(FastMCP 라이브러리 활용) 목적은 
+LangGraph 에이전트에서 사용하는 검색 도구를 만드는 것으로 크게는 LangConnect API 를 활용하는 기능(pg_vector - VectorDB) 과 
+TavilyWebSearch 를 이용한 웹검색 2가지 기능을 지원할 계획이야. --- 1,2 작업은 서로 연관이 있으니 각각 개발되고 연결되거나 또는
+1먼저 하고 2번해서 연동하는 방식으로 안정적으로 가도 괜찮겠어.  --- 3. (1,2) 작업이 완료된 후 LangGraph 레벨에서 각 
+에이전트가 정상적으로 동작한다고 판단되면 이제는 각 LangGraph Agent 를 A2A Agent 로 감싸는 작업이야. A2A Server 로 
+동작해야되니깐 /docs 하위에 있는 a2a-python 문서를 잘 참고해서 진행해야겠지? --- 4. 그러고 나면 A2A Client 를 Google ADK 로 
+개발해서 최종적으로 모든 A2A Server 와 통신이 잘 되는지 사람에 의한 테스트를 진행할 수 있으면 끝일 것 같아.  최종 결과물은 
+LangGraph Agent 3개(계획 수립, 자료조사, 글쓰기) 일것이고 자료조사 Agent는  MCP 서버와 통신이 
+가능해야되며(langchain-mcp-adapters 를 활용) 각 Agent 는 또한 A2A Server 로써 역할도 해야겠지. 사용자와 소통 가능한 A2A Client
+로 Google ADK 로 구성된 UnifiedResearch Agent 가 Client 로 사용자의 요청을 받고 각 에이전트에 작업을 할당하는 역할도 하게 
+될거야.  다양한 문서와 라이브러리를 참고해야되고 주로 /docs 에 넣어두었으니 잘 참고하도록 해. 계획은 아주 구체적으로 
+작성해야되며 가장 최신의 문서를 참고할 수 있도록 필요하다면 웹검색도 수행해도 좋아.
+
+---
+
+TTimes Guide Coding 프로젝트 구현 계획
+
+     🎯 프로젝트 목표
+
+     웹 검색과 보고서 작성을 자동화하는 LangGraph 기반 멀티 에이전트 시스템 구축
+
+     📋 작업 계획
+
+     Phase 1: LangGraph 에이전트 개발 (우선순위: 높음)
+
+     1.1 Planning Agent (계획 수립 에이전트)
+
+     위치: /agents/agent/planning_agent.py
+     - 역할: 사용자 요청을 분석하고 작업 계획 수립
+     - 주요 노드:
+       - analyze_request: 요청 분석 및 의도 파악
+       - create_plan: 실행 계획 생성
+       - delegate_tasks: 다른 에이전트에게 작업 할당
+     - 구현 사항:
+       - BaseAgent 상속
+       - Supervisor 패턴 적용
+       - 작업 분배 로직 구현
+
+     1.2 Research Agent (자료조사 에이전트)
+
+     위치: /agents/agent/research_agent.py
+     - 역할: 웹 검색과 벡터 DB 검색을 통한 정보 수집
+     - 주요 노드:
+       - search_web: Tavily API를 통한 웹 검색
+       - search_vector: LangConnect를 통한 벡터 검색
+       - aggregate_results: 검색 결과 통합 및 정리
+     - 구현 사항:
+       - MCP 서버 연동 (langchain-mcp-adapters 사용)
+       - 검색 결과 품질 평가
+       - 중복 제거 및 관련성 순위 정렬
+
+     1.3 Report Writing Agent (보고서 작성 에이전트)
+
+     위치: /agents/agent/report_writing_agent.py
+     - 역할: 수집된 정보를 바탕으로 구조화된 보고서 생성
+     - 주요 노드:
+       - structure_content: 콘텐츠 구조화
+       - write_sections: 섹션별 작성
+       - review_quality: 품질 검토 및 개선
+     - 구현 사항:
+       - 마크다운 형식 보고서 생성
+       - 인용 및 참조 관리
+       - 반복적 개선 메커니즘
+
+     Phase 2: MCP 서버 개발 (우선순위: 높음)
+
+     2.1 All-Search MCP Server
+
+     위치: /all-search-mcp/server.py
+     - FastMCP 2.0 활용
+     - 통합 검색 도구 제공:
+     @mcp.tool()
+     async def search_web(query: str, max_results: int = 5) -> list[dict]:
+         """Tavily API를 통한 웹 검색"""
+         
+     @mcp.tool()
+     async def search_vector(query: str, collection: str, top_k: int = 5) -> list[dict]:
+         """LangConnect를 통한 벡터 검색"""
+     - 환경 설정:
+       - Transport: streamable_http
+       - 포트: 8090
+       - 인증: API Key 기반
+
+     Phase 3: LangGraph-MCP 연동 (우선순위: 높음)
+
+     3.1 MCP 클라이언트 설정
+
+     # agents/tools/mcp_client.py
+     client = MultiServerMCPClient({
+         "search": {
+             "url": "http://localhost:8090/mcp/",
+             "transport": "streamable_http",
+             "headers": {"Authorization": f"Bearer {API_KEY}"}
+         }
+     })
+
+     3.2 도구 통합
+
+     - Research Agent에 MCP 도구 연결
+     - 비동기 검색 및 스트리밍 지원
+     - 에러 처리 및 재시도 로직
+
+     Phase 4: A2A 서버 변환 (우선순위: 중간)
+
+     4.1 각 LangGraph 에이전트를 A2A 서버로 래핑
+
+     위치: /agents/a2a_servers/
+     - AgentCard 정의:
+       - 각 에이전트의 능력 명세
+       - 입출력 스키마 정의
+       - 보안 설정
+     - 구현 구조:
+     # planning_a2a_server.py
+     class PlanningA2AServer(DefaultRequestHandler):
+         def __init__(self):
+             self.agent = PlanningAgent()
+             self.agent_card = AgentCard(
+                 name="planning_agent",
+                 skills=[...],
+                 input_modes=["text", "json"],
+                 output_modes=["json", "structured"]
+             )
+
+     4.2 포트 할당
+
+     - Planning Agent: 8003
+     - Research Agent: 8001  
+     - Report Writing Agent: 8004
+
+     Phase 5: Google ADK 클라이언트 (우선순위: 중간)
+
+     5.1 UnifiedResearch Agent
+
+     위치: /a2a_client/unified_research_agent.py
+     - Google ADK 기반 오케스트레이터
+     - 원격 A2A 에이전트 연결:
+     planning_agent = RemoteA2aAgent(
+         agent_url="http://localhost:8003/a2a/planning",
+         agent_card_path="/v1/card"
+     )
+
+     research_agent = RemoteA2aAgent(
+         agent_url="http://localhost:8001/a2a/research",
+         agent_card_path="/v1/card"
+     )
+
+     5.2 사용자 인터페이스
+
+     - ADK Web UI 활용
+     - 스트리밍 응답 지원
+     - Human-in-the-loop 구현
+
+     🧪 테스트 계획
+
+     단계별 테스트
+
+     1. 개별 LangGraph 에이전트 테스트
+       - langgraph dev 명령어로 각 에이전트 테스트
+       - LangGraph Studio (http://localhost:8123) 활용
+     2. MCP 서버 테스트
+       - FastMCP 내장 테스트 도구 활용
+       - 검색 기능 단위 테스트
+     3. 통합 테스트
+       - Docker Compose로 전체 시스템 실행
+       - 엔드투엔드 시나리오 테스트
+
+     📁 최종 프로젝트 구조
+
+     ttimes_guide_coding/
+     ├── agents/
+     │   ├── agent/
+     │   │   ├── planning_agent.py
+     │   │   ├── research_agent.py
+     │   │   └── report_writing_agent.py
+     │   ├── a2a_servers/
+     │   │   ├── planning_a2a_server.py
+     │   │   ├── research_a2a_server.py
+     │   │   └── report_writing_a2a_server.py
+     │   └── tools/
+     │       └── mcp_client.py
+     ├── all-search-mcp/
+     │   ├── server.py
+     │   └── config.yaml
+     ├── a2a_client/
+     │   └── unified_research_agent.py
+     └── docker/
+         └── docker-compose.yml
+
+     🚀 구현 순서
+
+     1. LangGraph 에이전트 개발 (병렬 가능)
+     2. MCP 서버 구현
+     3. LangGraph-MCP 연동
+     4. 개별 테스트 및 검증
+     5. A2A 서버 래핑
+     6. ADK 클라이언트 구현
+     7. 통합 테스트
+
+     이 계획을 따라 단계적으로 구현하면 안정적이고 확장 가능한 멀티 에이전트 시스템을 구축할 수 있습니다.
+
+⏺ 계획이 승인되었으니 이제 작업을 시작하겠습니다. 먼저 Todo 리스트를 더 세부적으로 업데이트하겠습니다.

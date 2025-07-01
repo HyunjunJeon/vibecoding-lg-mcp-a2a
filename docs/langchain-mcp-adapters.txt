@@ -1,0 +1,1967 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+The content has been processed where empty lines have been removed, content has been formatted for parsing in plain style, content has been compressed (code blocks are separated by ⋮---- delimiter), security check has been disabled.
+
+================================================================
+File Summary
+================================================================
+
+Purpose:
+--------
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+
+File Format:
+------------
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  a. A separator line (================)
+  b. The file path (File: path/to/file)
+  c. Another separator line
+  d. The full contents of the file
+  e. A blank line
+
+Usage Guidelines:
+-----------------
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+
+Notes:
+------
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Empty lines have been removed from all files
+- Content has been formatted for parsing in plain style
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Security check has been disabled - content may contain sensitive information
+- Files are sorted by Git change count (files with more changes are at the bottom)
+
+
+================================================================
+Directory Structure
+================================================================
+.github/
+  actions/
+    uv_setup/
+      action.yml
+  workflows/
+    _lint.yml
+    _test.yml
+    ci.yml
+    codeql.yml
+    release.yml
+  dependabot.yml
+examples/
+  servers/
+    streamable-http-stateless/
+      mcp_simple_streamablehttp_stateless/
+        __main__.py
+        server.py
+      pyproject.toml
+      README.md
+langchain_mcp_adapters/
+  client.py
+  prompts.py
+  resources.py
+  sessions.py
+  tools.py
+tests/
+  servers/
+    math_server.py
+    time_server.py
+    weather_server.py
+  conftest.py
+  test_client.py
+  test_import.py
+  test_prompts.py
+  test_resources.py
+  test_tools.py
+  utils.py
+.gitignore
+LICENSE
+Makefile
+pyproject.toml
+README.md
+SECURITY.md
+
+================================================================
+Files
+================================================================
+
+================
+File: .github/actions/uv_setup/action.yml
+================
+# TODO: https://docs.astral.sh/uv/guides/integration/github/#caching
+name: uv-install
+description: Set up Python and uv
+inputs:
+  python-version:
+    description: Python version, supporting MAJOR.MINOR only
+    required: true
+env:
+  UV_VERSION: "0.5.25"
+runs:
+  using: composite
+  steps:
+    - name: Install uv and set the python version
+      uses: astral-sh/setup-uv@v5
+      with:
+        version: ${{ env.UV_VERSION }}
+        python-version: ${{ inputs.python-version }}
+
+================
+File: .github/workflows/_lint.yml
+================
+name: lint
+permissions:
+  contents: read
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        required: true
+        type: string
+        description: "From which folder this pipeline executes"
+      python-version:
+        required: true
+        type: string
+        description: "Python version to use"
+env:
+  WORKDIR: ${{ inputs.working-directory == '' && '.' || inputs.working-directory }}
+  # This env var allows us to get inline annotations when ruff has complaints.
+  RUFF_OUTPUT_FORMAT: github
+  UV_FROZEN: "true"
+jobs:
+  build:
+    name: "make lint #${{ inputs.python-version }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ inputs.python-version }} + uv
+        uses: "./.github/actions/uv_setup"
+        with:
+          python-version: ${{ inputs.python-version }}
+      - name: Install dependencies
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          uv sync --group test
+      - name: Analysing the code with our lint
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          make lint
+
+================
+File: .github/workflows/_test.yml
+================
+name: test
+permissions:
+  contents: read
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        required: true
+        type: string
+        description: "From which folder this pipeline executes"
+      python-version:
+        required: true
+        type: string
+        description: "Python version to use"
+env:
+  UV_FROZEN: "true"
+  UV_NO_SYNC: "true"
+jobs:
+  build:
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    name: "make test #${{ inputs.python-version }}"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ inputs.python-version }} + uv
+        uses: "./.github/actions/uv_setup"
+        id: setup-python
+        with:
+          python-version: ${{ inputs.python-version }}
+      - name: Install dependencies
+        shell: bash
+        run: uv sync --group test
+      - name: Run core tests
+        shell: bash
+        run: |
+          make test
+
+================
+File: .github/workflows/ci.yml
+================
+---
+name: Run CI Tests
+permissions:
+  contents: read
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:  # Allows to trigger the workflow manually in GitHub UI
+# If another push to the same PR or branch happens while this workflow is still running,
+# cancel the earlier run in favor of the next run.
+#
+# There's no point in testing an outdated version of the code. GitHub only allows
+# a limited number of job runners to be active at the same time, so it's better to cancel
+# pointless jobs early so that more useful jobs can run sooner.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  lint:
+    strategy:
+      matrix:
+        # Only lint on the min and max supported Python versions.
+        # It's extremely unlikely that there's a lint issue on any version in between
+        # that doesn't show up on the min or max versions.
+        #
+        # GitHub rate-limits how many jobs can be running at any one time.
+        # Starting new jobs is also relatively slow,
+        # so linting on fewer versions makes CI faster.
+        python-version:
+          - "3.12"
+    uses:
+      ./.github/workflows/_lint.yml
+    with:
+      working-directory: .
+      python-version: ${{ matrix.python-version }}
+    secrets: inherit
+  test:
+    strategy:
+      matrix:
+        # Only lint on the min and max supported Python versions.
+        # It's extremely unlikely that there's a lint issue on any version in between
+        # that doesn't show up on the min or max versions.
+        #
+        # GitHub rate-limits how many jobs can be running at any one time.
+        # Starting new jobs is also relatively slow,
+        # so linting on fewer versions makes CI faster.
+        python-version:
+          - "3.10"
+          - "3.12"
+    uses:
+      ./.github/workflows/_test.yml
+    with:
+      working-directory: .
+      python-version: ${{ matrix.python-version }}
+    secrets: inherit
+
+================
+File: .github/workflows/codeql.yml
+================
+# For most projects, this workflow file will not need changing; you simply need
+# to commit it to your repository.
+#
+# You may wish to alter this file to override the set of languages analyzed,
+# or to provide custom queries or build logic.
+#
+# ******** NOTE ********
+# We have attempted to detect the languages in your repository. Please check
+# the `language` matrix defined below to confirm you have the correct set of
+# supported CodeQL languages.
+#
+name: "CodeQL Advanced"
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '34 14 * * 1'
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    # Runner size impacts CodeQL analysis time. To learn more, please see:
+    #   - https://gh.io/recommended-hardware-resources-for-running-codeql
+    #   - https://gh.io/supported-runners-and-hardware-resources
+    #   - https://gh.io/using-larger-runners (GitHub.com only)
+    # Consider using larger runners or machines with greater resources for possible analysis time improvements.
+    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
+    permissions:
+      # required for all workflows
+      security-events: write
+      # required to fetch internal or private CodeQL packs
+      packages: read
+      # only required for workflows in private repositories
+      actions: read
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: python
+            build-mode: none
+          - language: actions
+            build-mode: none
+        # CodeQL supports the following values keywords for 'language': $supported-codeql-languages
+        # Use `c-cpp` to analyze code written in C, C++ or both
+        # Use 'java-kotlin' to analyze code written in Java, Kotlin or both
+        # Use 'javascript-typescript' to analyze code written in JavaScript, TypeScript or both
+        # To learn more about changing the languages that are analyzed or customizing the build mode for your analysis,
+        # see https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/customizing-your-advanced-setup-for-code-scanning.
+        # If you are analyzing a compiled language, you can modify the 'build-mode' for that language to customize how
+        # your codebase is analyzed, see https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/codeql-code-scanning-for-compiled-languages
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    # Add any setup steps before running the `github/codeql-action/init` action.
+    # This includes steps like installing compilers or runtimes (`actions/setup-node`
+    # or others). This is typically only required for manual builds.
+    # - name: Setup runtime (example)
+    #   uses: actions/setup-example@v1
+    # Initializes the CodeQL tools for scanning.
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
+        build-mode: ${{ matrix.build-mode }}
+        # If you wish to specify custom queries, you can do so here or in a config file.
+        # By default, queries listed here will override any specified in a config file.
+        # Prefix the list here with "+" to use these queries and those in the config file.
+        # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
+        queries: security-extended
+    # If the analyze step fails for one of the languages you are analyzing with
+    # "We were unable to automatically build your code", modify the matrix above
+    # to set the build mode to "manual" for that language. Then modify this step
+    # to build your code.
+    # ℹ️ Command-line programs to run using the OS shell.
+    # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
+    - if: matrix.build-mode == 'manual'
+      shell: bash
+      run: |
+        echo 'If you are using a "manual" build mode for one or more of the' \
+          'languages you are analyzing, replace this with the commands to build' \
+          'your code, for example:'
+        echo '  make bootstrap'
+        echo '  make release'
+        exit 1
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:${{matrix.language}}"
+
+================
+File: .github/workflows/release.yml
+================
+name: release
+run-name: Release ${{ inputs.working-directory }} by @${{ github.actor }}
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        required: true
+        type: string
+        description: "From which folder this pipeline executes"
+  workflow_dispatch:
+    inputs:
+      working-directory:
+        description: "From which folder this pipeline executes"
+        default: "."
+      dangerous-nonmain-release:
+        required: false
+        type: boolean
+        default: false
+        description: "Release from a non-main branch (danger!)"
+env:
+  PYTHON_VERSION: "3.11"
+  UV_FROZEN: "true"
+  UV_NO_SYNC: "true"
+jobs:
+  build:
+    permissions:
+      contents: read
+    if: github.ref == 'refs/heads/main' || inputs.dangerous-nonmain-release
+    environment: Scheduled testing
+    runs-on: ubuntu-latest
+    outputs:
+      pkg-name: ${{ steps.check-version.outputs.pkg-name }}
+      version: ${{ steps.check-version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python + uv
+        uses: "./.github/actions/uv_setup"
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      # We want to keep this build stage *separate* from the release stage,
+      # so that there's no sharing of permissions between them.
+      # The release stage has trusted publishing and GitHub repo contents write access,
+      # and we want to keep the scope of that access limited just to the release job.
+      # Otherwise, a malicious `build` step (e.g. via a compromised dependency)
+      # could get access to our GitHub or PyPI credentials.
+      #
+      # Per the trusted publishing GitHub Action:
+      # > It is strongly advised to separate jobs for building [...]
+      # > from the publish job.
+      # https://github.com/pypa/gh-action-pypi-publish#non-goals
+      - name: Build project for distribution
+        run: uv build
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: ${{ inputs.working-directory }}/dist/
+      - name: Check Version
+        id: check-version
+        shell: python
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          import os
+          import tomllib
+          with open("pyproject.toml", "rb") as f:
+              data = tomllib.load(f)
+          pkg_name = data["project"]["name"]
+          version = data["project"]["version"]
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"pkg-name={pkg_name}\n")
+              f.write(f"version={version}\n")
+  publish:
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    permissions:
+      # This permission is used for trusted publishing:
+      # https://blog.pypi.org/posts/2023-04-20-introducing-trusted-publishers/
+      #
+      # Trusted publishing has to also be configured on PyPI for each package:
+      # https://docs.pypi.org/trusted-publishers/adding-a-publisher/
+      id-token: write
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python + uv
+        uses: "./.github/actions/uv_setup"
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: ${{ inputs.working-directory }}/dist/
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: ${{ inputs.working-directory }}/dist/
+          verbose: true
+          print-hash: true
+          # Temp workaround since attestations are on by default as of gh-action-pypi-publish v1.11.0
+          attestations: false
+  mark-release:
+    needs:
+      - build
+      - publish
+    runs-on: ubuntu-latest
+    permissions:
+      # This permission is needed by `ncipollo/release-action` to
+      # create the GitHub release.
+      contents: write
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python + uv
+        uses: "./.github/actions/uv_setup"
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: ${{ inputs.working-directory }}/dist/
+      - name: Create Tag
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "dist/*"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          generateReleaseNotes: true
+          tag: ${{needs.build.outputs.pkg-name}}==${{ needs.build.outputs.version }}
+          body: ${{ needs.release-notes.outputs.release-body }}
+          commit: main
+          makeLatest: true
+
+================
+File: .github/dependabot.yml
+================
+# Please see the documentation for all configuration options:
+# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+# and
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+================
+File: examples/servers/streamable-http-stateless/mcp_simple_streamablehttp_stateless/__main__.py
+================
+
+
+================
+File: examples/servers/streamable-http-stateless/mcp_simple_streamablehttp_stateless/server.py
+================
+logger = logging.getLogger(__name__)
+⋮----
+# Configure logging
+⋮----
+app = Server("mcp-streamable-http-stateless-demo")
+⋮----
+@app.list_tools()
+    async def list_tools() -> list[types.Tool]
+# Create the session manager with true stateless mode
+session_manager = StreamableHTTPSessionManager(
+⋮----
+@contextlib.asynccontextmanager
+    async def lifespan(app: Starlette) -> AsyncIterator[None]
+⋮----
+"""Context manager for session manager."""
+⋮----
+# Create an ASGI application using the transport
+starlette_app = Starlette(
+
+================
+File: examples/servers/streamable-http-stateless/pyproject.toml
+================
+[project]
+name = "mcp-simple-streamablehttp-stateless"
+version = "0.1.0"
+description = "A simple MCP server exposing a StreamableHttp transport in stateless mode"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Anthropic, PBC." }]
+keywords = ["mcp", "llm", "automation", "web", "fetch", "http", "streamable", "stateless"]
+license = { text = "MIT" }
+dependencies = ["anyio>=4.5", "click>=8.1.0", "httpx>=0.27", "mcp", "starlette", "uvicorn"]
+
+[project.scripts]
+mcp-simple-streamablehttp-stateless = "mcp_simple_streamablehttp_stateless.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mcp_simple_streamablehttp_stateless"]
+
+[tool.pyright]
+include = ["mcp_simple_streamablehttp_stateless"]
+venvPath = "."
+venv = ".venv"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = []
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.uv]
+dev-dependencies = ["pyright>=1.1.378", "pytest>=8.3.3", "ruff>=0.6.9"]
+
+================
+File: examples/servers/streamable-http-stateless/README.md
+================
+# MCP Simple StreamableHttp Stateless Server Example
+
+> Adapted from the [official Python MCP SDK example](https://github.com/modelcontextprotocol/python-sdk/tree/main/examples/servers/simple-streamablehttp-stateless)
+
+A stateless MCP server example demonstrating the StreamableHttp transport without maintaining session state. This example is ideal for understanding how to deploy MCP servers in multi-node environments where requests can be routed to any instance.
+
+## Features
+
+- Uses the StreamableHTTP transport in stateless mode (mcp_session_id=None)
+- Each request creates a new ephemeral connection
+- No session state maintained between requests
+- Task lifecycle scoped to individual requests
+- Suitable for deployment in multi-node environments
+
+
+## Usage
+
+Start the server:
+
+```bash
+# Using default port 3000
+uv run mcp-simple-streamablehttp-stateless
+
+# Using custom port
+uv run mcp-simple-streamablehttp-stateless --port 3000
+
+# Custom logging level
+uv run mcp-simple-streamablehttp-stateless --log-level DEBUG
+
+# Enable JSON responses instead of SSE streams
+uv run mcp-simple-streamablehttp-stateless --json-response
+```
+
+The server exposes a tool named "start-notification-stream" that accepts three arguments:
+
+- `interval`: Time between notifications in seconds (e.g., 1.0)
+- `count`: Number of notifications to send (e.g., 5)
+- `caller`: Identifier string for the caller
+
+
+## Client
+
+You can connect to this server using an HTTP client. For now, only the TypeScript SDK has streamable HTTP client examples, or you can use [Inspector](https://github.com/modelcontextprotocol/inspector) for testing.
+
+================
+File: langchain_mcp_adapters/client.py
+================
+ASYNC_CONTEXT_MANAGER_ERROR = (
+class MultiServerMCPClient
+⋮----
+"""Client for connecting to multiple MCP servers and loading LangChain-compatible tools, prompts and resources from them."""
+⋮----
+"""Initialize a MultiServerMCPClient with MCP servers connections.
+        Args:
+            connections: A dictionary mapping server names to connection configurations.
+                If None, no initial connections are established.
+        Example: basic usage (starting a new session on each tool call)
+        ```python
+        from langchain_mcp_adapters.client import MultiServerMCPClient
+        client = MultiServerMCPClient(
+            {
+                "math": {
+                    "command": "python",
+                    # Make sure to update to the full absolute path to your math_server.py file
+                    "args": ["/path/to/math_server.py"],
+                    "transport": "stdio",
+                },
+                "weather": {
+                    # Make sure you start your weather server on port 8000
+                    "url": "http://localhost:8000/mcp",
+                    "transport": "streamable_http",
+                }
+            }
+        )
+        all_tools = await client.get_tools()
+        ```
+        Example: explicitly starting a session
+        ```python
+        from langchain_mcp_adapters.client import MultiServerMCPClient
+        from langchain_mcp_adapters.tools import load_mcp_tools
+        client = MultiServerMCPClient({...})
+        async with client.session("math") as session:
+            tools = await load_mcp_tools(session)
+        ```
+        """
+⋮----
+"""Connect to an MCP server and initialize a session.
+        Args:
+            server_name: Name to identify this server connection
+            auto_initialize: Whether to automatically initialize the session
+        Raises:
+            ValueError: If the server name is not found in the connections
+        Yields:
+            An initialized ClientSession
+        """
+⋮----
+async def get_tools(self, *, server_name: str | None = None) -> list[BaseTool]
+⋮----
+"""Get a list of all tools from all connected servers.
+        Args:
+            server_name: Optional name of the server to get tools from.
+                If None, all tools from all servers will be returned (default).
+        NOTE: a new session will be created for each tool call
+        Returns:
+            A list of LangChain tools
+        """
+⋮----
+all_tools: list[BaseTool] = []
+load_mcp_tool_tasks = []
+⋮----
+load_mcp_tool_task = asyncio.create_task(load_mcp_tools(None, connection=connection))
+⋮----
+tools_list = await asyncio.gather(*load_mcp_tool_tasks)
+⋮----
+"""Get a prompt from a given MCP server."""
+⋮----
+prompt = await load_mcp_prompt(session, prompt_name, arguments=arguments)
+⋮----
+"""Get resources from a given MCP server.
+        Args:
+            server_name: Name of the server to get resources from
+            uris: Optional resource URI or list of URIs to load. If not provided, all resources will be loaded.
+        Returns:
+            A list of LangChain Blobs
+        """
+⋮----
+resources = await load_mcp_resources(session, uris=uris)
+⋮----
+async def __aenter__(self) -> "MultiServerMCPClient"
+⋮----
+__all__ = [
+
+================
+File: langchain_mcp_adapters/prompts.py
+================
+"""Convert an MCP prompt message to a LangChain message.
+    Args:
+        message: MCP prompt message to convert
+    Returns:
+        A LangChain message
+    """
+⋮----
+"""Load MCP prompt and convert to LangChain messages."""
+response = await session.get_prompt(name, arguments)
+
+================
+File: langchain_mcp_adapters/resources.py
+================
+"""Convert an MCP resource content to a LangChain Blob.
+    Args:
+        resource_uri: URI of the resource
+        contents: The resource contents
+    Returns:
+        A LangChain Blob
+    """
+⋮----
+data = contents.text
+⋮----
+data = base64.b64decode(contents.blob)
+⋮----
+async def get_mcp_resource(session: ClientSession, uri: str) -> list[Blob]
+⋮----
+"""Fetch a single MCP resource and convert it to LangChain Blobs.
+    Args:
+        session: MCP client session
+        uri: URI of the resource to fetch
+    Returns:
+        A list of LangChain Blobs
+    """
+contents_result = await session.read_resource(uri)
+⋮----
+"""Load MCP resources and convert them to LangChain Blobs.
+    Args:
+        session: MCP client session
+        uris: List of URIs to load.
+            If None, all resources will be loaded.
+            NOTE: if you specify None, dynamic resources will NOT be loaded,
+            as they need the parameters to be provided,
+            and are ignored by MCP SDK's session.list_resources() method.
+    Returns:
+        A list of LangChain Blobs
+    """
+blobs = []
+⋮----
+resources_list = await session.list_resources()
+uri_list = [r.uri for r in resources_list.resources]
+⋮----
+uri_list = [uris]
+⋮----
+uri_list = uris
+⋮----
+resource_blobs = await get_mcp_resource(session, uri)
+
+================
+File: langchain_mcp_adapters/sessions.py
+================
+EncodingErrorHandler = Literal["strict", "ignore", "replace"]
+DEFAULT_ENCODING = "utf-8"
+DEFAULT_ENCODING_ERROR_HANDLER: EncodingErrorHandler = "strict"
+DEFAULT_HTTP_TIMEOUT = 5
+DEFAULT_SSE_READ_TIMEOUT = 60 * 5
+DEFAULT_STREAMABLE_HTTP_TIMEOUT = timedelta(seconds=30)
+DEFAULT_STREAMABLE_HTTP_SSE_READ_TIMEOUT = timedelta(seconds=60 * 5)
+class McpHttpClientFactory(Protocol)
+class StdioConnection(TypedDict)
+⋮----
+transport: Literal["stdio"]
+command: str
+"""The executable to run to start the server."""
+args: list[str]
+"""Command line arguments to pass to the executable."""
+env: dict[str, str] | None
+"""The environment to use when spawning the process."""
+cwd: str | Path | None
+"""The working directory to use when spawning the process."""
+encoding: str
+"""The text encoding used when sending/receiving messages to the server."""
+encoding_error_handler: EncodingErrorHandler
+"""
+    The text encoding error handler.
+    See https://docs.python.org/3/library/codecs.html#codec-base-classes for
+    explanations of possible values.
+    """
+session_kwargs: dict[str, Any] | None
+"""Additional keyword arguments to pass to the ClientSession."""
+class SSEConnection(TypedDict)
+⋮----
+transport: Literal["sse"]
+url: str
+"""The URL of the SSE endpoint to connect to."""
+headers: dict[str, Any] | None
+"""HTTP headers to send to the SSE endpoint."""
+timeout: float
+"""HTTP timeout."""
+sse_read_timeout: float
+"""SSE read timeout."""
+⋮----
+httpx_client_factory: McpHttpClientFactory | None
+"""Custom factory for httpx.AsyncClient (optional)."""
+auth: NotRequired[httpx.Auth]
+"""Optional authentication for the HTTP client."""
+class StreamableHttpConnection(TypedDict)
+⋮----
+transport: Literal["streamable_http"]
+⋮----
+"""The URL of the endpoint to connect to."""
+⋮----
+"""HTTP headers to send to the endpoint."""
+timeout: timedelta
+⋮----
+sse_read_timeout: timedelta
+"""How long (in seconds) the client will wait for a new event before disconnecting.
+    All other HTTP operations are controlled by `timeout`."""
+terminate_on_close: bool
+"""Whether to terminate the session on close."""
+⋮----
+class WebsocketConnection(TypedDict)
+⋮----
+transport: Literal["websocket"]
+⋮----
+"""The URL of the Websocket endpoint to connect to."""
+⋮----
+"""Additional keyword arguments to pass to the ClientSession"""
+Connection = StdioConnection | SSEConnection | StreamableHttpConnection | WebsocketConnection
+⋮----
+"""Create a new session to an MCP server using stdio.
+    Args:
+        command: Command to execute
+        args: Arguments for the command
+        env: Environment variables for the command
+        cwd: Working directory for the command
+        encoding: Character encoding
+        encoding_error_handler: How to handle encoding errors
+        session_kwargs: Additional keyword arguments to pass to the ClientSession
+    """
+# NOTE: execution commands (e.g., `uvx` / `npx`) require PATH envvar to be set.
+# To address this, we automatically inject existing PATH envvar into the `env` value,
+# if it's not already set.
+env = env or {}
+⋮----
+server_params = StdioServerParameters(
+# Create and store the connection
+⋮----
+"""Create a new session to an MCP server using SSE.
+    Args:
+        url: URL of the SSE server
+        headers: HTTP headers to send to the SSE endpoint
+        timeout: HTTP timeout
+        sse_read_timeout: SSE read timeout
+        session_kwargs: Additional keyword arguments to pass to the ClientSession
+        httpx_client_factory: Custom factory for httpx.AsyncClient (optional)
+        auth: httpx.Auth | None = None
+    """
+⋮----
+kwargs = {}
+⋮----
+"""Create a new session to an MCP server using Streamable HTTP.
+    Args:
+        url: URL of the endpoint to connect to
+        headers: HTTP headers to send to the endpoint
+        timeout: HTTP timeout
+        sse_read_timeout: How long (in seconds) the client will wait for a new event before disconnecting
+        terminate_on_close: Whether to terminate the session on close
+        session_kwargs: Additional keyword arguments to pass to the ClientSession
+        httpx_client_factory: Custom factory for httpx.AsyncClient (optional)
+        auth: httpx.Auth | None = None
+    """
+⋮----
+"""Create a new session to an MCP server using Websockets.
+    Args:
+        url: URL of the Websocket endpoint
+        session_kwargs: Additional keyword arguments to pass to the ClientSession
+    Raises:
+        ImportError: If websockets package is not installed
+    """
+⋮----
+"""Create a new session to an MCP server.
+    Args:
+        connection: Connection config to use to connect to the server
+    Raises:
+        ValueError: If transport is not recognized
+        ValueError: If required parameters for the specified transport are missing
+    Yields:
+        A ClientSession
+    """
+⋮----
+transport = connection["transport"]
+
+================
+File: langchain_mcp_adapters/tools.py
+================
+NonTextContent = ImageContent | EmbeddedResource
+MAX_ITERATIONS = 1000
+⋮----
+text_contents: list[TextContent] = []
+non_text_contents = []
+⋮----
+tool_content: str | list[str] = [content.text for content in text_contents]
+⋮----
+tool_content = ""
+⋮----
+tool_content = tool_content[0]
+⋮----
+async def _list_all_tools(session: ClientSession) -> list[MCPTool]
+⋮----
+current_cursor: str | None = None
+all_tools: list[MCPTool] = []
+iterations = 0
+⋮----
+list_tools_page_result = await session.list_tools(cursor=current_cursor)
+⋮----
+current_cursor = list_tools_page_result.nextCursor
+⋮----
+"""Convert an MCP tool to a LangChain tool.
+    NOTE: this tool can be executed only in a context of an active MCP client session.
+    Args:
+        session: MCP client session
+        tool: MCP tool to convert
+        connection: Optional connection config to use to create a new session
+                    if a `session` is not provided
+    Returns:
+        a LangChain tool
+    """
+⋮----
+# If a session is not provided, we will create one on the fly
+⋮----
+call_tool_result = await cast(ClientSession, tool_session).call_tool(
+⋮----
+call_tool_result = await session.call_tool(tool.name, arguments)
+⋮----
+"""Load all available MCP tools and convert them to LangChain tools.
+    Returns:
+        list of LangChain tools. Tool annotations are returned as part
+        of the tool metadata object.
+    """
+⋮----
+# If a session is not provided, we will create one on the fly
+⋮----
+tools = await _list_all_tools(tool_session)
+⋮----
+tools = await _list_all_tools(session)
+converted_tools = [
+⋮----
+def _get_injected_args(tool: BaseTool) -> list[str]
+⋮----
+def _is_injected_arg_type(type_: type) -> bool
+injected_args = [
+⋮----
+def to_fastmcp(tool: BaseTool) -> FastMCPTool
+⋮----
+"""Convert a LangChain tool to a FastMCP tool."""
+⋮----
+parameters = tool.tool_call_schema.model_json_schema()
+field_definitions = {
+arg_model = create_model(
+fn_metadata = FuncMetadata(arg_model=arg_model)
+async def fn(**arguments: dict[str, Any]) -> Any
+injected_args = _get_injected_args(tool)
+⋮----
+fastmcp_tool = FastMCPTool(
+
+================
+File: tests/servers/math_server.py
+================
+mcp = FastMCP("Math")
+⋮----
+@mcp.tool()
+def add(a: int, b: int) -> int
+⋮----
+"""Add two numbers"""
+⋮----
+@mcp.tool()
+def multiply(a: int, b: int) -> int
+⋮----
+"""Multiply two numbers"""
+⋮----
+@mcp.prompt()
+def configure_assistant(skills: str) -> list[dict]
+
+================
+File: tests/servers/time_server.py
+================
+mcp = FastMCP("time")
+⋮----
+@mcp.tool()
+def get_time() -> str
+⋮----
+"""Get current time"""
+
+================
+File: tests/servers/weather_server.py
+================
+mcp = FastMCP("Weather")
+⋮----
+@mcp.tool()
+async def get_weather(location: str) -> str
+⋮----
+"""Get weather for location."""
+
+================
+File: tests/conftest.py
+================
+@pytest.fixture
+def websocket_server_port() -> int
+⋮----
+@pytest.fixture()
+def websocket_server(websocket_server_port: int) -> Generator[None, None, None]
+⋮----
+proc = multiprocessing.Process(
+⋮----
+# Wait for server to be running
+max_attempts = 20
+attempt = 0
+⋮----
+# Signal the server to stop
+⋮----
+@pytest.fixture
+def socket_enabled()
+⋮----
+"""Temporarily enable socket connections for websocket tests."""
+⋮----
+previous_state = pytest_socket.socket_allow_hosts()
+# Only allow connections to localhost
+⋮----
+# Restore previous state
+
+================
+File: tests/test_client.py
+================
+"""Test that the MultiServerMCPClient can connect to multiple servers and load tools."""
+# Get the absolute path to the server scripts
+current_dir = Path(__file__).parent
+math_server_path = os.path.join(current_dir, "servers/math_server.py")
+weather_server_path = os.path.join(current_dir, "servers/weather_server.py")
+client = MultiServerMCPClient(
+# Check that we have tools from both servers
+all_tools = await client.get_tools()
+# Should have 3 tools (add, multiply, get_weather)
+⋮----
+# Check that tools are BaseTool instances
+⋮----
+# Verify tool names
+tool_names = {tool.name for tool in all_tools}
+⋮----
+# Check math server tools
+math_tools = await client.get_tools(server_name="math")
+⋮----
+math_tool_names = {tool.name for tool in math_tools}
+⋮----
+# Check weather server tools
+weather_tools = await client.get_tools(server_name="weather")
+⋮----
+# Check time server tools
+time_tools = await client.get_tools(server_name="time")
+⋮----
+# Test that we can call a math tool
+add_tool = next(tool for tool in all_tools if tool.name == "add")
+result = await add_tool.ainvoke({"a": 2, "b": 3})
+⋮----
+# Test that we can call a weather tool
+weather_tool = next(tool for tool in all_tools if tool.name == "get_weather")
+result = await weather_tool.ainvoke({"location": "London"})
+⋮----
+# Test the multiply tool
+multiply_tool = next(tool for tool in all_tools if tool.name == "multiply")
+result = await multiply_tool.ainvoke({"a": 4, "b": 5})
+⋮----
+# Test that we can call a time tool
+time_tool = next(tool for tool in all_tools if tool.name == "get_time")
+result = await time_tool.ainvoke({"args": ""})
+⋮----
+"""Test the different connect methods for MultiServerMCPClient."""
+⋮----
+# Initialize client without initial connections
+⋮----
+tool_names = set()
+⋮----
+tools = await load_mcp_tools(session)
+⋮----
+result = await tools[0].ainvoke({"a": 2, "b": 3})
+⋮----
+result = await tools[0].ainvoke({"args": ""})
+⋮----
+@pytest.mark.asyncio
+async def test_get_prompt()
+⋮----
+"""Test retrieving prompts from MCP servers."""
+⋮----
+# Test getting a prompt from the math server
+messages = await client.get_prompt(
+# Check that we got an AIMessage back
+
+================
+File: tests/test_import.py
+================
+def test_import() -> None
+⋮----
+"""Test that the code can be imported"""
+from langchain_mcp_adapters import client, prompts, resources, tools  # noqa: F401
+
+================
+File: tests/test_prompts.py
+================
+message = PromptMessage(role=role, content=TextContent(type="text", text=text))
+result = convert_mcp_prompt_message_to_langchain_message(message)
+⋮----
+@pytest.mark.parametrize("role", ["assistant", "user"])
+def test_convert_mcp_prompt_message_to_langchain_message_with_resource_content(role: str)
+⋮----
+message = PromptMessage(
+⋮----
+@pytest.mark.parametrize("role", ["assistant", "user"])
+def test_convert_mcp_prompt_message_to_langchain_message_with_image_content(role: str)
+⋮----
+@pytest.mark.asyncio
+async def test_load_mcp_prompt()
+⋮----
+session = AsyncMock()
+⋮----
+result = await load_mcp_prompt(session, "test_prompt")
+
+================
+File: tests/test_resources.py
+================
+def test_convert_mcp_resource_to_langchain_blob_with_text()
+⋮----
+uri = "file:///test.txt"
+contents = TextResourceContents(uri=uri, mimeType="text/plain", text="Hello, world!")
+blob = convert_mcp_resource_to_langchain_blob(uri, contents)
+⋮----
+def test_convert_mcp_resource_to_langchain_blob()
+⋮----
+uri = "file:///test.png"
+original_data = b"binary-image-data"
+base64_blob = base64.b64encode(original_data).decode()
+contents = BlobResourceContents(uri=uri, mimeType="image/png", blob=base64_blob)
+⋮----
+def test_convert_mcp_resource_to_langchain_blob_with_invalid_type()
+⋮----
+class DummyContent(ResourceContents)
+⋮----
+@pytest.mark.asyncio
+async def test_get_mcp_resource_with_contents()
+⋮----
+session = AsyncMock()
+⋮----
+blobs = await get_mcp_resource(session, uri)
+⋮----
+@pytest.mark.asyncio
+async def test_get_mcp_resource_with_text_and_blob()
+⋮----
+uri = "file:///mixed"
+original_data = b"some-binary-content"
+⋮----
+results = await get_mcp_resource(session, uri)
+⋮----
+@pytest.mark.asyncio
+async def test_get_mcp_resource_with_empty_contents()
+⋮----
+uri = "file:///empty.txt"
+⋮----
+@pytest.mark.asyncio
+async def test_load_mcp_resources_with_list_of_uris()
+⋮----
+uri1 = "file:///test1.txt"
+uri2 = "file:///test2.txt"
+⋮----
+blobs = await load_mcp_resources(session, uris=[uri1, uri2])
+⋮----
+@pytest.mark.asyncio
+async def test_load_mcp_resources_with_single_uri_string()
+⋮----
+blobs = await load_mcp_resources(session, uris=uri)
+⋮----
+@pytest.mark.asyncio
+async def test_load_mcp_resources_with_all_resources()
+⋮----
+blobs = await load_mcp_resources(session)
+⋮----
+@pytest.mark.asyncio
+async def test_load_mcp_resources_with_error_handling()
+⋮----
+uri1 = "file:///valid.txt"
+uri2 = "file:///error.txt"
+⋮----
+@pytest.mark.asyncio
+async def test_load_mcp_resources_with_blob_content()
+⋮----
+uri = "file:///with_blob"
+original_data = b"binary data"
+
+================
+File: tests/test_tools.py
+================
+def test_convert_empty_text_content()
+⋮----
+# Test with a single text content
+result = CallToolResult(
+⋮----
+def test_convert_single_text_content()
+def test_convert_multiple_text_contents()
+⋮----
+# Test with multiple text contents
+⋮----
+def test_convert_with_non_text_content()
+⋮----
+# Test with non-text content
+image_content = ImageContent(type="image", mimeType="image/png", data="base64data")
+resource_content = EmbeddedResource(
+⋮----
+def test_convert_with_error()
+⋮----
+# Test with error
+⋮----
+@pytest.mark.asyncio
+async def test_convert_mcp_tool_to_langchain_tool()
+⋮----
+tool_input_schema = {
+# Mock session and MCP tool
+session = AsyncMock()
+⋮----
+mcp_tool = MCPTool(
+# Convert MCP tool to LangChain tool
+lc_tool = convert_mcp_tool_to_langchain_tool(session, mcp_tool)
+# Verify the converted tool
+⋮----
+# Test calling the tool
+result = await lc_tool.ainvoke(
+# Verify session.call_tool was called with correct arguments
+⋮----
+# Verify result
+⋮----
+@pytest.mark.asyncio
+async def test_load_mcp_tools()
+⋮----
+# Mock session and list_tools response
+⋮----
+mcp_tools = [
+⋮----
+# Mock call_tool to return different results for different tools
+async def mock_call_tool(tool_name, arguments)
+⋮----
+# Load MCP tools
+tools = await load_mcp_tools(session)
+# Verify the tools
+⋮----
+# Test calling the first tool
+result1 = await tools[0].ainvoke(
+⋮----
+# Test calling the second tool
+result2 = await tools[1].ainvoke(
+⋮----
+"""Test load mcp tools with annotations."""
+⋮----
+server = FastMCP(port=8181)
+⋮----
+def get_time() -> str
+⋮----
+"""Get current time"""
+⋮----
+# Initialize client without initial connections
+client = MultiServerMCPClient(
+# pass
+tools = await client.get_tools(server_name="time")
+⋮----
+tool = tools[0]
+⋮----
+# Tests for to_fastmcp functionality
+⋮----
+@tool
+def add(a: int, b: int) -> int
+⋮----
+"""Add two numbers"""
+⋮----
+class AddInput(BaseModel)
+⋮----
+a: int
+b: int
+⋮----
+@tool("add", args_schema=AddInput)
+def add_with_schema(a: int, b: int) -> int
+⋮----
+@tool("add")
+def add_with_injection(a: int, b: int, injected_arg: Annotated[str, InjectedToolArg()]) -> int
+class AddTool(BaseTool)
+⋮----
+name: str = "add"
+description: str = "Add two numbers"
+args_schema: type[BaseModel] | None = AddInput
+def _run(self, a: int, b: int, run_manager: CallbackManagerForToolRun | None = None) -> int
+⋮----
+"""Use the tool."""
+⋮----
+async def test_convert_langchain_tool_to_fastmcp_tool(tool_instance)
+⋮----
+fastmcp_tool = to_fastmcp(tool_instance)
+⋮----
+arguments = {"a": 1, "b": 2}
+⋮----
+def test_convert_langchain_tool_to_fastmcp_tool_with_injection()
+# Tests for httpx_client_factory functionality
+⋮----
+"""Test load mcp tools with custom httpx client factory."""
+⋮----
+server = FastMCP(port=8182)
+⋮----
+@server.tool()
+    def get_status() -> str
+⋮----
+"""Get server status"""
+⋮----
+# Custom httpx client factory
+⋮----
+"""Custom factory for creating httpx.AsyncClient with specific configuration."""
+⋮----
+# Custom configuration
+⋮----
+# Initialize client with custom httpx_client_factory
+⋮----
+tools = await client.get_tools(server_name="status")
+⋮----
+# Test that the tool works correctly
+result = await tool.ainvoke({"args": {}, "id": "1", "type": "tool_call"})
+⋮----
+"""Test load mcp tools with custom httpx client factory using SSE transport."""
+⋮----
+server = FastMCP(port=8183)
+⋮----
+@server.tool()
+    def get_info() -> str
+⋮----
+"""Get server info"""
+⋮----
+# Custom configuration for SSE
+⋮----
+# Initialize client with custom httpx_client_factory for SSE
+⋮----
+# Note: This test may not work in practice since the server doesn't expose SSE endpoint,
+# but it tests the configuration propagation
+⋮----
+tools = await client.get_tools(server_name="info")
+# If we get here, the httpx_client_factory was properly passed
+⋮----
+# Expected to fail since server doesn't have SSE endpoint,
+# but the important thing is that httpx_client_factory was passed correctly
+
+================
+File: tests/utils.py
+================
+def make_server_app() -> Starlette
+⋮----
+server = time_mcp._mcp_server
+async def handle_ws(websocket)
+app = Starlette(
+⋮----
+def run_server(server_port: int) -> None
+⋮----
+app = make_server_app()
+server = uvicorn.Server(
+⋮----
+# Give server time to start
+⋮----
+def run_streamable_http_server(server: FastMCP, server_port: int) -> None
+⋮----
+"""Run a FastMCP server in a separate process exposing a streamable HTTP endpoint."""
+app = server.streamable_http_app()
+uvicorn_server = uvicorn.Server(
+⋮----
+@contextlib.contextmanager
+def run_streamable_http(server: FastMCP) -> Generator[None, None, None]
+⋮----
+"""Run the server in a separate process exposing a streamable HTTP endpoint.
+    The endpoint will be available at `http://localhost:{server.settings.port}/mcp/`.
+    """
+proc = multiprocessing.Process(
+⋮----
+# Wait for server to be running
+max_attempts = 20
+attempt = 0
+⋮----
+# Signal the server to stop
+
+================
+File: .gitignore
+================
+# Pyenv
+.python-version
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Environments
+.venv
+.env
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+================
+File: LICENSE
+================
+MIT License
+
+Copyright (c) 2025 LangChain, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================
+File: Makefile
+================
+.PHONY: all lint format test help
+
+# Default target executed when no arguments are given to make.
+all: help
+
+######################
+# TESTING AND COVERAGE
+######################
+
+# Define a variable for the test file path.
+TEST_FILE ?= tests/
+
+test:
+	uv run pytest --disable-socket --allow-unix-socket $(TEST_FILE) --timeout 10
+
+test_watch:
+	uv run ptw . -- $(TEST_FILE)
+
+
+######################
+# LINTING AND FORMATTING
+######################
+
+# Define a variable for Python and notebook files.
+lint format: PYTHON_FILES=langchain_mcp_adapters/ tests/
+lint_diff format_diff: PYTHON_FILES=$(shell git diff --relative=. --name-only --diff-filter=d master | grep -E '\.py$$|\.ipynb$$')
+
+lint lint_diff:
+	[ "$(PYTHON_FILES)" = "" ] ||	uv run ruff format $(PYTHON_FILES) --diff
+	[ "$(PYTHON_FILES)" = "" ] ||	uv run ruff check $(PYTHON_FILES) --diff
+	# [ "$(PYTHON_FILES)" = "" ] || uv run mypy $(PYTHON_FILES)
+
+format format_diff:
+	[ "$(PYTHON_FILES)" = "" ] || uv run ruff check --fix $(PYTHON_FILES)
+	[ "$(PYTHON_FILES)" = "" ] || uv run ruff format $(PYTHON_FILES)
+
+	
+
+######################
+# HELP
+######################
+
+help:
+	@echo '===================='
+	@echo '-- LINTING --'
+	@echo 'format                       - run code formatters'
+	@echo 'lint                         - run linters'
+	@echo '-- TESTS --'
+	@echo 'test                         - run unit tests'
+	@echo 'test TEST_FILE=<test_file>   - run all tests in file'
+	@echo '-- DOCUMENTATION tasks are from the top-level Makefile --'
+
+================
+File: pyproject.toml
+================
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[project]
+name = "langchain-mcp-adapters"
+version = "0.1.7"
+description = "Make Anthropic Model Context Protocol (MCP) tools compatible with LangChain and LangGraph agents."
+authors = [
+    { name = "Vadym Barda", email = "19161700+vbarda@users.noreply.github.com" },
+]
+license = "MIT"
+repository = "https://www.github.com/langchain-ai/langchain-mcp-adapters"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "langchain-core>=0.3.36,<0.4",
+    "mcp>=1.9.2",
+    "typing-extensions>=4.14.0",
+]
+
+[dependency-groups]
+test = [
+    "pytest>=8.0.0",
+    "ruff>=0.9.4",
+    "mypy>=1.8.0",
+    "pytest-socket>=0.7.0",
+    "pytest-asyncio>=0.26.0",
+    "types-setuptools>=69.0.0",
+    "websockets>=15.0.1",
+    "pytest-timeout>=2.4.0",
+]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+# -ra: Report all extra test outcomes (passed, skipped, failed, etc.)
+# -q: Enable quiet mode for less cluttered output
+# -v: Enable verbose output to display detailed test names and statuses
+# --durations=5: Show the 10 slowest tests after the run (useful for performance tuning)
+addopts = "-ra -q -v --durations=5"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E", # pycodestyle errors
+    "W", # pycodestyle warnings
+    "F", # pyflakes
+    "I", # isort
+    "B", # flake8-bugbear
+]
+ignore = [
+    "E501", # line-length
+]
+
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+
+================
+File: README.md
+================
+# LangChain MCP Adapters
+
+This library provides a lightweight wrapper that makes [Anthropic Model Context Protocol (MCP)](https://modelcontextprotocol.io/introduction) tools compatible with [LangChain](https://github.com/langchain-ai/langchain) and [LangGraph](https://github.com/langchain-ai/langgraph).
+
+![MCP](static/img/mcp.png)
+
+## Features
+
+- 🛠️ Convert MCP tools into [LangChain tools](https://python.langchain.com/docs/concepts/tools/) that can be used with [LangGraph](https://github.com/langchain-ai/langgraph) agents
+- 📦 A client implementation that allows you to connect to multiple MCP servers and load tools from them
+
+## Installation
+
+```bash
+pip install langchain-mcp-adapters
+```
+
+## Quickstart
+
+Here is a simple example of using the MCP tools with a LangGraph agent.
+
+```bash
+pip install langchain-mcp-adapters langgraph "langchain[openai]"
+
+export OPENAI_API_KEY=<your_api_key>
+```
+
+### Server
+
+First, let's create an MCP server that can add and multiply numbers.
+
+```python
+# math_server.py
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("Math")
+
+@mcp.tool()
+def add(a: int, b: int) -> int:
+    """Add two numbers"""
+    return a + b
+
+@mcp.tool()
+def multiply(a: int, b: int) -> int:
+    """Multiply two numbers"""
+    return a * b
+
+if __name__ == "__main__":
+    mcp.run(transport="stdio")
+```
+
+### Client
+
+```python
+# Create server parameters for stdio connection
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+from langchain_mcp_adapters.tools import load_mcp_tools
+from langgraph.prebuilt import create_react_agent
+
+server_params = StdioServerParameters(
+    command="python",
+    # Make sure to update to the full absolute path to your math_server.py file
+    args=["/path/to/math_server.py"],
+)
+
+async with stdio_client(server_params) as (read, write):
+    async with ClientSession(read, write) as session:
+        # Initialize the connection
+        await session.initialize()
+
+        # Get tools
+        tools = await load_mcp_tools(session)
+
+        # Create and run the agent
+        agent = create_react_agent("openai:gpt-4.1", tools)
+        agent_response = await agent.ainvoke({"messages": "what's (3 + 5) x 12?"})
+```
+
+## Multiple MCP Servers
+
+The library also allows you to connect to multiple MCP servers and load tools from them:
+
+### Server
+
+```python
+# math_server.py
+...
+
+# weather_server.py
+from typing import List
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("Weather")
+
+@mcp.tool()
+async def get_weather(location: str) -> str:
+    """Get weather for location."""
+    return "It's always sunny in New York"
+
+if __name__ == "__main__":
+    mcp.run(transport="streamable-http")
+```
+
+```bash
+python weather_server.py
+```
+
+### Client
+
+```python
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langgraph.prebuilt import create_react_agent
+
+client = MultiServerMCPClient(
+    {
+        "math": {
+            "command": "python",
+            # Make sure to update to the full absolute path to your math_server.py file
+            "args": ["/path/to/math_server.py"],
+            "transport": "stdio",
+        },
+        "weather": {
+            # Make sure you start your weather server on port 8000
+            "url": "http://localhost:8000/mcp/",
+            "transport": "streamable_http",
+        }
+    }
+)
+tools = await client.get_tools()
+agent = create_react_agent("openai:gpt-4.1", tools)
+math_response = await agent.ainvoke({"messages": "what's (3 + 5) x 12?"})
+weather_response = await agent.ainvoke({"messages": "what is the weather in nyc?"})
+```
+
+> [!note]
+> Example above will start a new MCP `ClientSession` for each tool invocation. If you would like to explicitly start a session for a given server, you can do:
+>
+>    ```python
+>    from langchain_mcp_adapters.tools import load_mcp_tools
+>
+>    client = MultiServerMCPClient({...})
+>    async with client.session("math") as session:
+>        tools = await load_mcp_tools(session)
+>    ```
+
+## Streamable HTTP
+
+MCP now supports [streamable HTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http) transport.
+
+To start an [example](examples/servers/streamable-http-stateless/) streamable HTTP server, run the following:
+
+```bash
+cd examples/servers/streamable-http-stateless/
+uv run mcp-simple-streamablehttp-stateless --port 3000
+```
+
+Alternatively, you can use FastMCP directly (as in the examples above).
+
+To use it with Python MCP SDK `streamablehttp_client`:
+
+```python
+# Use server from examples/servers/streamable-http-stateless/
+
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+
+from langgraph.prebuilt import create_react_agent
+from langchain_mcp_adapters.tools import load_mcp_tools
+
+async with streamablehttp_client("http://localhost:3000/mcp/") as (read, write, _):
+    async with ClientSession(read, write) as session:
+        # Initialize the connection
+        await session.initialize()
+
+        # Get tools
+        tools = await load_mcp_tools(session)
+        agent = create_react_agent("openai:gpt-4.1", tools)
+        math_response = await agent.ainvoke({"messages": "what's (3 + 5) x 12?"})
+```
+
+Use it with `MultiServerMCPClient`:
+
+```python
+# Use server from examples/servers/streamable-http-stateless/
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langgraph.prebuilt import create_react_agent
+
+client = MultiServerMCPClient(
+    {
+        "math": {
+            "transport": "streamable_http",
+            "url": "http://localhost:3000/mcp/"
+        },
+    }
+)
+tools = await client.get_tools()
+agent = create_react_agent("openai:gpt-4.1", tools)
+math_response = await agent.ainvoke({"messages": "what's (3 + 5) x 12?"})
+```
+
+## Passing runtime headers
+
+When connecting to MCP servers, you can include custom headers (e.g., for authentication or tracing) using the `headers` field in the connection configuration. This is supported for the following transports:
+
+* `sse`
+* `streamable_http`
+
+### Example: passing headers with `MultiServerMCPClient`
+
+```python
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langgraph.prebuilt import create_react_agent
+
+client = MultiServerMCPClient(
+    {
+        "weather": {
+            "transport": "streamable_http",
+            "url": "http://localhost:8000/mcp",
+            "headers": {
+                "Authorization": "Bearer YOUR_TOKEN",
+                "X-Custom-Header": "custom-value"
+            },
+        }
+    }
+)
+tools = await client.get_tools()
+agent = create_react_agent("openai:gpt-4.1", tools)
+response = await agent.ainvoke({"messages": "what is the weather in nyc?"})
+```
+
+> Only `sse` and `streamable_http` transports support runtime headers. These headers are passed with every HTTP request to the MCP server.
+
+
+## Using with LangGraph StateGraph
+
+```python
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langgraph.graph import StateGraph, MessagesState, START
+from langgraph.prebuilt import ToolNode, tools_condition
+
+from langchain.chat_models import init_chat_model
+model = init_chat_model("openai:gpt-4.1")
+
+client = MultiServerMCPClient(
+    {
+        "math": {
+            "command": "python",
+            # Make sure to update to the full absolute path to your math_server.py file
+            "args": ["./examples/math_server.py"],
+            "transport": "stdio",
+        },
+        "weather": {
+            # make sure you start your weather server on port 8000
+            "url": "http://localhost:8000/mcp/",
+            "transport": "streamable_http",
+        }
+    }
+)
+tools = await client.get_tools()
+
+def call_model(state: MessagesState):
+    response = model.bind_tools(tools).invoke(state["messages"])
+    return {"messages": response}
+
+builder = StateGraph(MessagesState)
+builder.add_node(call_model)
+builder.add_node(ToolNode(tools))
+builder.add_edge(START, "call_model")
+builder.add_conditional_edges(
+    "call_model",
+    tools_condition,
+)
+builder.add_edge("tools", "call_model")
+graph = builder.compile()
+math_response = await graph.ainvoke({"messages": "what's (3 + 5) x 12?"})
+weather_response = await graph.ainvoke({"messages": "what is the weather in nyc?"})
+```
+
+## Using with LangGraph API Server
+
+> [!TIP]
+> Check out [this guide](https://langchain-ai.github.io/langgraph/tutorials/langgraph-platform/local-server/) on getting started with LangGraph API server.
+
+If you want to run a LangGraph agent that uses MCP tools in a LangGraph API server, you can use the following setup:
+
+```python
+# graph.py
+from contextlib import asynccontextmanager
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langgraph.prebuilt import create_react_agent
+
+async def make_graph():
+    client = MultiServerMCPClient(
+        {
+            "math": {
+                "command": "python",
+                # Make sure to update to the full absolute path to your math_server.py file
+                "args": ["/path/to/math_server.py"],
+                "transport": "stdio",
+            },
+            "weather": {
+                # make sure you start your weather server on port 8000
+                "url": "http://localhost:8000/mcp/",
+                "transport": "streamable_http",
+            }
+        }
+    )
+    tools = await client.get_tools()
+    agent = create_react_agent("openai:gpt-4.1", tools)
+    return agent
+```
+
+In your [`langgraph.json`](https://langchain-ai.github.io/langgraph/cloud/reference/cli/#configuration-file) make sure to specify `make_graph` as your graph entrypoint:
+
+```json
+{
+  "dependencies": ["."],
+  "graphs": {
+    "agent": "./graph.py:make_graph"
+  }
+}
+```
+
+## Add LangChain tools to a FastMCP server
+
+Use `to_fastmcp` to convert LangChain tools to FastMCP, and then add them to the `FastMCP` server via the initializer:
+
+> [!NOTE]
+> `tools` argument is only available in FastMCP as of `mcp >= 1.9.1`
+
+```python
+from langchain_core.tools import tool
+from langchain_mcp_adapters.tools import to_fastmcp
+from mcp.server.fastmcp import FastMCP
+
+
+@tool
+def add(a: int, b: int) -> int:
+    """Add two numbers"""
+    return a + b
+
+
+fastmcp_tool = to_fastmcp(add)
+
+mcp = FastMCP("Math", tools=[fastmcp_tool])
+mcp.run(transport="stdio")
+```
+
+================
+File: SECURITY.md
+================
+# Security Policy
+
+For any other security concerns, please contact us at `security@langchain.dev`.
+
+
+
+
+================================================================
+End of Codebase
+================================================================

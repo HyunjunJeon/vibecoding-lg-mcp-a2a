@@ -1,0 +1,1637 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+The content has been processed where empty lines have been removed, content has been formatted for parsing in plain style, content has been compressed (code blocks are separated by ⋮---- delimiter), security check has been disabled.
+
+================================================================
+File Summary
+================================================================
+
+Purpose:
+--------
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+
+File Format:
+------------
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  a. A separator line (================)
+  b. The file path (File: path/to/file)
+  c. Another separator line
+  d. The full contents of the file
+  e. A blank line
+
+Usage Guidelines:
+-----------------
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+
+Notes:
+------
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Empty lines have been removed from all files
+- Content has been formatted for parsing in plain style
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Security check has been disabled - content may contain sensitive information
+- Files are sorted by Git change count (files with more changes are at the bottom)
+
+
+================================================================
+Directory Structure
+================================================================
+langchain_tavily/
+  .github/
+    workflows/
+      test.yml
+  __init__.py
+  _utilities.py
+  tavily_crawl.py
+  tavily_extract.py
+  tavily_map.py
+  tavily_search.py
+scripts/
+  check_imports.py
+  lint_imports.sh
+tests/
+  integration_tests/
+    test_compile.py
+    test_tavily_crawl.py
+    test_tavily_extract.py
+    test_tavily_map.py
+    test_tavily_search.py
+  unit_tests/
+    test_api_key.py
+    test_tavily_crawl.py
+    test_tavily_extract.py
+    test_tavily_map.py
+    test_tavily_search.py
+.gitignore
+LICENSE
+Makefile
+pyproject.toml
+README.md
+
+================================================================
+Files
+================================================================
+
+================
+File: langchain_tavily/.github/workflows/test.yml
+================
+name: Test
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+      - name: Install dependencies
+        run: poetry install --with test
+      - name: Run linting
+        run: poetry run make lint
+      - name: Run unit tests
+        run: poetry run make test
+      - name: Install integration test dependencies
+        run: poetry install --with test_integration
+      - name: Run integration tests
+        env:
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+        run: poetry run make integration_tests
+
+================
+File: langchain_tavily/__init__.py
+================
+__version__ = metadata.version(__package__)
+⋮----
+# Case where package metadata is not available.
+__version__ = ""
+del metadata  # optional, avoids polluting the results of dir(__package__)
+__all__ = [
+
+================
+File: langchain_tavily/_utilities.py
+================
+"""Util that calls Tavily Search + Extract API.
+In order to set this up, follow instructions at:
+https://docs.tavily.com/docs/tavily-api/introduction
+"""
+⋮----
+TAVILY_API_URL = "https://api.tavily.com"
+class TavilySearchAPIWrapper(BaseModel)
+⋮----
+"""Wrapper for Tavily Search API."""
+tavily_api_key: SecretStr
+model_config = ConfigDict(
+⋮----
+@model_validator(mode="before")
+@classmethod
+    def validate_environment(cls, values: Dict) -> Any
+⋮----
+"""Validate that api key and endpoint exists in environment."""
+tavily_api_key = get_from_dict_or_env(
+⋮----
+params = {
+# Remove None values
+params = {k: v for k, v in params.items() if v is not None}
+headers = {
+response = requests.post(
+⋮----
+# type: ignore
+⋮----
+detail = response.json().get("detail", {})
+error_message = (
+⋮----
+"""Get results from the Tavily Search API asynchronously."""
+# Function to perform the API call
+async def fetch() -> str
+⋮----
+# Remove None values
+⋮----
+data = await res.text()
+⋮----
+results_json_str = await fetch()
+⋮----
+class TavilyExtractAPIWrapper(BaseModel)
+⋮----
+"""Wrapper for Tavily Extract API."""
+⋮----
+"""Get results from the Tavily Extract API asynchronously."""
+⋮----
+class TavilyCrawlAPIWrapper(BaseModel)
+⋮----
+"""Wrapper for Tavily Crawl API."""
+⋮----
+"""Get results from the Tavily Crawl API asynchronously."""
+⋮----
+class TavilyMapAPIWrapper(BaseModel)
+⋮----
+"""Wrapper for Tavily Map API."""
+⋮----
+"""Get results from the Tavily Map API asynchronously."""
+
+================
+File: langchain_tavily/tavily_crawl.py
+================
+"""Tool for the Tavily Crawl API."""
+⋮----
+class TavilyCrawlInput(BaseModel)
+⋮----
+"""Input for [TavilyCrawl]"""
+url: str = Field(description=("The root URL to begin the crawl."))
+max_depth: Optional[int] = Field(
+⋮----
+""",  # noqa: E501
+⋮----
+max_breadth: Optional[int] = Field(
+limit: Optional[int] = Field(
+instructions: Optional[str] = Field(
+select_paths: Optional[List[str]] = Field(
+select_domains: Optional[List[str]] = Field(
+exclude_paths: Optional[List[str]] = Field(
+exclude_domains: Optional[List[str]] = Field(
+allow_external: Optional[bool] = Field(
+include_images: Optional[bool] = Field(
+categories: Optional[
+⋮----
+""",  # noqa: E501
+⋮----
+extract_depth: Optional[Literal["basic", "advanced"]] = Field(
+def _generate_suggestions(params: dict) -> list
+⋮----
+"""Generate helpful suggestions based on the failed crawl parameters."""
+suggestions = []
+instructions = params.get("instructions")
+select_paths = params.get("select_paths")
+select_domains = params.get("select_domains")
+exclude_paths = params.get("exclude_paths")
+exclude_domains = params.get("exclude_domains")
+categories = params.get("categories")
+⋮----
+class TavilyCrawl(BaseTool):  # type: ignore[override]
+⋮----
+"""Tool that sends requests to the Tavily Crawl API with dynamically settable parameters."""  # noqa: E501
+name: str = "tavily_crawl"
+description: str = """A powerful web crawler that initiates a structured web crawl starting from a specified
+⋮----
+"""  # noqa: E501
+args_schema: Type[BaseModel] = TavilyCrawlInput
+handle_tool_error: bool = True
+max_depth: Optional[int] = None
+"""Max depth of the crawl. Defines how far from the base URL the crawler can explore.
+    max_depth must be greater than 0
+    default is 1
+    """  # noqa: E501
+⋮----
+"""  # noqa: E501
+max_breadth: Optional[int] = None
+"""The maximum number of links to follow per level of the tree (i.e., per page).
+    max_breadth must be greater than 0
+    default is 20
+    """
+limit: Optional[int] = None
+"""Total number of links the crawler will process before stopping.
+    limit must be greater than 0
+    default is 50
+    """
+instructions: Optional[str] = None
+"""Natural language instructions for the crawler.
+    ex. "Python SDK"
+    """
+select_paths: Optional[List[str]] = None
+"""Regex patterns to select only URLs with specific path patterns.
+    ex. ["/api/v1.*"]
+    """
+select_domains: Optional[List[str]] = None
+"""Regex patterns to select only URLs from specific domains or subdomains.
+    ex. ["^docs\.example\.com$"]
+    """
+exclude_paths: Optional[List[str]] = None
+"""
+    Regex patterns to exclude URLs with specific path patterns 
+    ex.  [/private/.*, /admin/.*]
+    """
+exclude_domains: Optional[List[str]] = None
+"""
+    Regex patterns to exclude specific domains or subdomains from crawling 
+    ex. [^private\.example\.com$]
+    """
+allow_external: Optional[bool] = None
+"""Whether to allow following links that go to external domains.
+    default is False
+    """
+include_images: Optional[bool] = None
+"""Whether to include images in the crawl results.
+    default is False
+    """
+⋮----
+"""Filter URLs using predefined categories like 'Documentation', 'Blogs', etc.
+    """
+extract_depth: Optional[Literal["basic", "advanced"]] = None
+"""Advanced extraction retrieves more data, including tables and embedded content, 
+    with higher success but may increase latency.
+    default is basic
+    """
+format: Optional[str] = None
+"""
+    The format of the extracted web page content. markdown returns content in markdown 
+    format. text returns plain text and may increase latency.
+    default is markdown
+    """
+api_wrapper: TavilyCrawlAPIWrapper = Field(default_factory=TavilyCrawlAPIWrapper)  # type: ignore[arg-type]
+def __init__(self, **kwargs: Any) -> None
+⋮----
+# Create api_wrapper with tavily_api_key if provided
+⋮----
+"""Execute a crawl using the Tavily Crawl API.
+        Returns:
+            - base_url (str): The base URL that was crawled
+                Example: "https://tavily.com/"
+            - results (List[Dict]): A list of extracted content from the crawled URLs
+                - url (str): The URL that was crawled
+                    Example: "https://tavily.com/#features"
+                - raw_content (str): The full content extracted from the page
+                - images (List[str]): A list of image URLs extracted from the page
+            - response_time (float): Time in seconds it took to complete the request
+        """
+⋮----
+# Execute search with parameters directly
+raw_results = self.api_wrapper.raw_results(
+# Check if results are empty and raise a specific exception
+⋮----
+search_params = {
+suggestions = _generate_suggestions(search_params)
+# Construct a detailed message for the agent
+error_message = (
+⋮----
+f"Try modifying your crawl parameters with one of these approaches."  # noqa: E501
+⋮----
+# Re-raise tool exceptions
+⋮----
+"""Use the tool asynchronously."""
+⋮----
+raw_results = await self.api_wrapper.raw_results_async(
+
+================
+File: langchain_tavily/tavily_extract.py
+================
+"""Tool for the Tavily Extract API."""
+⋮----
+class TavilyExtractInput(BaseModel)
+⋮----
+"""
+    Input for [TavilyExtract]
+    Extract web page content from one or more specified URLs using Tavily Extract.
+    """
+urls: List[str] = Field(description="list of urls to extract")
+extract_depth: Optional[Literal["basic", "advanced"]] = Field(
+⋮----
+""",  # noqa: E501
+⋮----
+include_images: Optional[bool] = Field(
+def _generate_suggestions(params: dict) -> list
+⋮----
+"""Generate helpful suggestions based on the failed search parameters."""
+suggestions = []
+⋮----
+class TavilyExtract(BaseTool):  # type: ignore[override, override]
+⋮----
+"""Tool that queries the Tavily Extract API with dynamically settable parameters."""
+name: str = "tavily_extract"
+description: str = (
+args_schema: Type[BaseModel] = TavilyExtractInput
+handle_tool_error: bool = True
+# Default parameters
+extract_depth: Optional[Literal["basic", "advanced"]] = None
+"""The depth of the extraction process. 
+    'advanced' extraction retrieves more data than 'basic',
+    with higher success but may increase latency.
+    Default is 'basic'
+    """
+include_images: Optional[bool] = None
+"""Include a list of images extracted from the URLs in the response.
+    Default is False
+    """
+format: Optional[str] = None
+"""
+    The format of the extracted web page content. markdown returns content in markdown 
+    format. text returns plain text and may increase latency.
+    Default is 'markdown'
+    """
+apiwrapper: TavilyExtractAPIWrapper = Field(default_factory=TavilyExtractAPIWrapper)  # type: ignore[arg-type]
+def __init__(self, **kwargs: Any) -> None
+⋮----
+# Create apiwrapper with tavily_api_key if provided
+⋮----
+"""Use the tool."""
+⋮----
+# Execute search with parameters directly
+raw_results = self.apiwrapper.raw_results(
+# Check if results are empty and raise a specific exception
+results = raw_results.get("results", [])
+failed_results = raw_results.get("failed_results", [])
+⋮----
+search_params = {
+suggestions = _generate_suggestions(search_params)
+# Construct a detailed message for the agent
+error_message = (
+⋮----
+f"Try modifying your extract parameters with one of these approaches."  # noqa: E501
+⋮----
+# Re-raise tool exceptions
+⋮----
+"""Use the tool asynchronously."""
+⋮----
+raw_results = await self.apiwrapper.raw_results_async(
+
+================
+File: langchain_tavily/tavily_map.py
+================
+"""Tool for the Tavily Map API."""
+⋮----
+class TavilyMapInput(BaseModel)
+⋮----
+"""Input for [TavilyMap]"""
+url: str = Field(description=("The root URL to begin the mapping."))
+max_depth: Optional[int] = Field(
+⋮----
+""",  # noqa: E501
+⋮----
+max_breadth: Optional[int] = Field(
+limit: Optional[int] = Field(
+instructions: Optional[str] = Field(
+select_paths: Optional[List[str]] = Field(
+select_domains: Optional[List[str]] = Field(
+exclude_paths: Optional[List[str]] = Field(
+exclude_domains: Optional[List[str]] = Field(
+allow_external: Optional[bool] = Field(
+categories: Optional[
+⋮----
+""",  # noqa: E501
+⋮----
+def _generate_suggestions(params: dict) -> list
+⋮----
+"""Generate helpful suggestions based on the failed crawl parameters."""
+suggestions = []
+instructions = params.get("instructions")
+select_paths = params.get("select_paths")
+select_domains = params.get("select_domains")
+exclude_paths = params.get("exclude_paths")
+exclude_domains = params.get("exclude_domains")
+categories = params.get("categories")
+⋮----
+class TavilyMap(BaseTool):  # type: ignore[override]
+⋮----
+"""Tool that sends requests to the Tavily Map API with dynamically settable parameters."""  # noqa: E501
+name: str = "tavily_map"
+description: str = """"A powerful web mapping tool that creates a structured map of website URLs, allowing
+⋮----
+"""  # noqa: E501
+args_schema: Type[BaseModel] = TavilyMapInput
+handle_tool_error: bool = True
+max_depth: Optional[int] = None
+"""Max depth of the crawl. Defines how far from the base URL the crawler can explore.
+    max_depth must be greater than 0
+    default is 1
+    """  # noqa: E501
+⋮----
+"""  # noqa: E501
+max_breadth: Optional[int] = None
+"""The maximum number of links to follow per level of the tree (i.e., per page).
+    max_breadth must be greater than 0
+    default is 20
+    """
+limit: Optional[int] = None
+"""Total number of links the crawler will process before stopping.
+    limit must be greater than 0
+    default is 50
+    """
+instructions: Optional[str] = None
+"""Natural language instructions for the crawler.
+    ex. "Python SDK"
+    """
+select_paths: Optional[List[str]] = None
+"""Regex patterns to select only URLs with specific path patterns.
+    ex. ["/api/v1.*"]
+    """
+select_domains: Optional[List[str]] = None
+"""Regex patterns to select only URLs from specific domains or subdomains.
+    ex. ["^docs\.example\.com$"]
+    """
+exclude_paths: Optional[List[str]] = None
+"""
+    Regex patterns to exclude URLs with specific path patterns 
+    ex.  [/private/.*, /admin/.*]
+    """
+exclude_domains: Optional[List[str]] = None
+"""
+    Regex patterns to exclude specific domains or subdomains from mapping 
+    ex. [^private\.example\.com$]
+    """
+allow_external: Optional[bool] = None
+"""Whether to allow following links that go to external domains.
+    default is False
+    """
+⋮----
+"""Filter URLs using predefined categories like 'Documentation', 'Blogs', etc.
+    """
+api_wrapper: TavilyMapAPIWrapper = Field(default_factory=TavilyMapAPIWrapper)  # type: ignore[arg-type]
+def __init__(self, **kwargs: Any) -> None
+⋮----
+# Create api_wrapper with tavily_api_key if provided
+⋮----
+"""Execute a mapping using the Tavily Map API.
+        Returns:
+            - base_url (str): The base URL that was mapped
+                Example: "https://tavily.com/"
+            - results (List[str]): A list of mapped URLs
+                - url (str): The URL that was mapped
+                    Example: "https://tavily.com/#features"
+            - response_time (float): Time in seconds it took to complete the request
+        """
+⋮----
+# Execute search with parameters directly
+raw_results = self.api_wrapper.raw_results(
+# Check if results are empty and raise a specific exception
+⋮----
+search_params = {
+suggestions = _generate_suggestions(search_params)
+# Construct a detailed message for the agent
+error_message = (
+⋮----
+f"Try modifying your crawl parameters with one of these approaches."  # noqa: E501
+⋮----
+# Re-raise tool exceptions
+⋮----
+"""Use the tool asynchronously."""
+⋮----
+raw_results = await self.api_wrapper.raw_results_async(
+
+================
+File: langchain_tavily/tavily_search.py
+================
+"""Tavily tools."""
+⋮----
+class TavilySearchInput(BaseModel)
+⋮----
+"""Input for [TavilySearch]"""
+query: str = Field(description=("Search query to look up"))
+include_domains: Optional[List[str]] = Field(
+⋮----
+""",  # noqa: E501
+⋮----
+exclude_domains: Optional[List[str]] = Field(
+search_depth: Optional[Literal["basic", "advanced"]] = Field(
+include_images: Optional[bool] = Field(
+time_range: Optional[Literal["day", "week", "month", "year"]] = Field(
+topic: Optional[Literal["general", "news", "finance"]] = Field(
+def _generate_suggestions(params: dict) -> list
+⋮----
+"""Generate helpful suggestions based on the failed search parameters."""
+suggestions = []
+search_depth = params.get("search_depth")
+exclude_domains = params.get("exclude_domains")
+include_domains = params.get("include_domains")
+time_range = params.get("time_range")
+topic = params.get("topic")
+⋮----
+class TavilySearch(BaseTool):  # type: ignore[override]
+⋮----
+"""Tool that queries the Tavily Search API and gets back json.
+    Setup:
+        Install ``langchain-tavily`` and set environment variable ``TAVILY_API_KEY``.
+        .. code-block:: bash
+            pip install -U langchain-tavily
+            export TAVILY_API_KEY="your-api-key"
+    Instantiate:
+        .. code-block:: python
+            from langchain_tavily import TavilySearch
+            tool = TavilySearch(
+                max_results=1,
+                topic="general",
+                # include_answer=False,
+                # include_raw_content=False,
+                # include_images=False,
+                # include_image_descriptions=False,
+                # search_depth="basic",
+                # time_range="day",
+                # include_domains=None,
+                # exclude_domains=None,
+                # country=None
+            )
+    Invoke directly with args:
+        .. code-block:: python
+            tool.invoke({"query": "What happened at the last wimbledon"})
+        .. code-block:: json
+            {
+                'query': 'What happened at the last wimbledon',
+                'follow_up_questions': None,
+                'answer': None,
+                'images': [],
+                'results': [{'title': "Andy Murray pulls out of the men's singles draw at his last Wimbledon",
+                            'url': 'https://www.nbcnews.com/news/sports/andy-murray-wimbledon-tennis-singles-draw-rcna159912',
+                            'content': "NBC News Now LONDON — Andy Murray, one of the last decade's most successful ..."
+                            'score': 0.6755297,
+                            'raw_content': None
+                            }],
+                'response_time': 1.31
+            }
+    """  # noqa: E501
+⋮----
+"""  # noqa: E501
+name: str = "tavily_search"
+description: str = (
+args_schema: Type[BaseModel] = TavilySearchInput
+handle_tool_error: bool = True
+auto_parameters: Optional[bool] = None
+"""
+    When `auto_parameters` is enabled, Tavily automatically configures search parameters
+    based on your query's content and intent. You can still set other parameters 
+    manually, and your explicit values will override the automatic ones. The parameters 
+    `include_answer`, `include_raw_content`, and `max_results` must always be set 
+    manually, as they directly affect response size. Note: `search_depth` may be 
+    automatically set to advanced when it’s likely to improve results. This uses 2 API
+    credits per request. To avoid the extra cost, you can explicitly set `search_depth` 
+    to `basic`. 
+    Default is `False`.
+    """
+include_domains: Optional[List[str]] = None
+"""A list of domains to specifically include in the search results
+    default is None
+    """
+exclude_domains: Optional[List[str]] = None
+"""A list of domains to specifically exclude from the search results
+    default is None
+    """
+search_depth: Optional[Literal["basic", "advanced"]] = None
+"""The depth of the search. It can be 'basic' or 'advanced'
+    default is "basic"
+    """
+include_images: Optional[bool] = None
+"""Include a list of query related images in the response
+    default is False
+    """
+time_range: Optional[Literal["day", "week", "month", "year"]] = None
+"""The time range back from the current date to filter results
+    default is None
+    """
+max_results: Optional[int] = None
+"""Max search results to return, 
+    default is 5
+    """
+topic: Optional[Literal["general", "news", "finance"]] = None
+"""The category of the search. Can be "general", "news", or "finance".
+    Default is "general".
+    """
+include_answer: Optional[Union[bool, Literal["basic", "advanced"]]] = None
+"""Include a short answer to original query in the search results. 
+    Default is False.
+    """
+include_raw_content: Optional[Union[bool, Literal["markdown", "text"]]] = None
+""" Include the cleaned and parsed HTML content of each search result. 
+    "markdown" returns search result content in markdown format. "text" 
+    returns the plain text from the results and may increase latency.
+    Default is "markdown".
+    """
+include_image_descriptions: Optional[bool] = None
+"""Include a descriptive text for each image in the search results.
+    Default is False.
+    """
+country: Optional[str] = None
+"""Boost search results from a specific country. This will prioritize content from 
+    the selected country in the search results. Available only if topic is general.
+    To see the countries supported visit our docs https://docs.tavily.com/documentation/api-reference/endpoint/search
+    Default is None.
+    """
+api_wrapper: TavilySearchAPIWrapper = Field(default_factory=TavilySearchAPIWrapper)  # type: ignore[arg-type]
+def __init__(self, **kwargs: Any) -> None
+⋮----
+# Create api_wrapper with tavily_api_key if provided
+⋮----
+"""Execute a search query using the Tavily Search API.
+        Returns:
+            Dict[str, Any]: Search results containing:
+                - query: Original search query
+                - results: List of search results, each with:
+                    - title: Title of the page
+                    - url: URL of the page
+                    - content: Relevant content snippet
+                    - score: Relevance score
+                - images: List of relevant images (if include_images=True)
+                - response_time: Time taken for the search
+        """
+⋮----
+# Execute search with parameters directly
+raw_results = self.api_wrapper.raw_results(
+# Check if results are empty and raise a specific exception
+⋮----
+search_params = {
+suggestions = _generate_suggestions(search_params)
+# Construct a detailed message for the agent
+error_message = (
+⋮----
+f"Try modifying your search parameters with one of these approaches."  # noqa: E501
+⋮----
+# Re-raise tool exceptions
+⋮----
+"""Use the tool asynchronously."""
+⋮----
+raw_results = await self.api_wrapper.raw_results_async(
+
+================
+File: scripts/check_imports.py
+================
+files = sys.argv[1:]
+has_failure = False
+⋮----
+has_failure = True
+print(file)  # noqa: T201
+⋮----
+print()  # noqa: T201
+
+================
+File: scripts/lint_imports.sh
+================
+#!/bin/bash
+set -eu
+# Initialize a variable to keep track of errors
+errors=0
+# make sure not importing from langchain, langchain_experimental, or langchain_community
+git --no-pager grep '^from langchain\.' . && errors=$((errors+1))
+git --no-pager grep '^from langchain_experimental\.' . && errors=$((errors+1))
+git --no-pager grep '^from langchain_community\.' . && errors=$((errors+1))
+# Decide on an exit status based on the errors
+if [ "$errors" -gt 0 ]; then
+    exit 1
+else
+    exit 0
+fi
+
+================
+File: tests/integration_tests/test_compile.py
+================
+@pytest.mark.compile
+def test_placeholder() -> None
+⋮----
+"""Used for compiling integration tests without running any real tests."""
+
+================
+File: tests/integration_tests/test_tavily_crawl.py
+================
+class TestTavilyCrawlToolIntegration(ToolsIntegrationTests)
+⋮----
+@property
+    def tool_constructor(self) -> Type[TavilyCrawl]
+⋮----
+@property
+    def tool_constructor_params(self) -> dict
+⋮----
+# Parameters for initializing the TavilyCrawl tool
+⋮----
+@property
+    def tool_invoke_params_example(self) -> dict
+⋮----
+"""
+        Returns a dictionary representing the "args" of an example tool call.
+        This should NOT be a ToolCall dict - i.e. it should not
+        have {"name", "id", "args"} keys.
+        """
+
+================
+File: tests/integration_tests/test_tavily_extract.py
+================
+class TestTavilyExtractToolIntegration(ToolsIntegrationTests)
+⋮----
+@property
+    def tool_constructor(self) -> Type[TavilyExtract]
+⋮----
+@property
+    def tool_constructor_params(self) -> dict
+⋮----
+# Parameters for initializing the TavilyExtract tool
+⋮----
+@property
+    def tool_invoke_params_example(self) -> dict
+⋮----
+"""
+        Returns a dictionary representing the "args" of an example tool call.
+        This should NOT be a ToolCall dict - i.e. it should not
+        have {"name", "id", "args"} keys.
+        """
+
+================
+File: tests/integration_tests/test_tavily_map.py
+================
+class TestTavilyMapToolIntegration(ToolsIntegrationTests)
+⋮----
+@property
+    def tool_constructor(self) -> Type[TavilyMap]
+⋮----
+@property
+    def tool_constructor_params(self) -> dict
+⋮----
+# Parameters for initializing the TavilyMap tool
+⋮----
+@property
+    def tool_invoke_params_example(self) -> dict
+⋮----
+"""
+        Returns a dictionary representing the "args" of an example tool call.
+        This should NOT be a ToolCall dict - i.e. it should not
+        have {"name", "id", "args"} keys.
+        """
+
+================
+File: tests/integration_tests/test_tavily_search.py
+================
+class TestTavilySearchToolIntegration(ToolsIntegrationTests)
+⋮----
+@property
+    def tool_constructor(self) -> Type[TavilySearch]
+⋮----
+@property
+    def tool_constructor_params(self) -> dict
+⋮----
+# Parameters for initializing the TavilySearch tool
+⋮----
+@property
+    def tool_invoke_params_example(self) -> dict
+⋮----
+"""
+        Returns a dictionary representing the "args" of an example tool call.
+        This should NOT be a ToolCall dict - i.e. it should not
+        have {"name", "id", "args"} keys.
+        """
+
+================
+File: tests/unit_tests/test_api_key.py
+================
+def test_api_wrapper_api_key_not_visible() -> None
+⋮----
+"""Test that an exception is raised if the API key is not present."""
+wrapper = TavilySearchAPIWrapper(tavily_api_key="abcd123")  # type: ignore[arg-type]
+
+================
+File: tests/unit_tests/test_tavily_crawl.py
+================
+class TestTavilyCrawlToolUnit(ToolsUnitTests):  # Fixed class name to match its purpose
+⋮----
+@pytest.fixture(autouse=True)
+    def setup_mocks(self, request: pytest.FixtureRequest) -> MagicMock
+⋮----
+# Patch the validation_environment class method
+patcher = patch(
+mock_validate = patcher.start()
+# Use pytest's cleanup mechanism
+⋮----
+@property
+    def tool_constructor(self) -> Type[TavilyCrawl]
+⋮----
+@property
+    def tool_constructor_params(self) -> dict
+⋮----
+# Parameters for initializing the TavilyCrawl tool
+⋮----
+@property
+    def tool_invoke_params_example(self) -> dict
+⋮----
+"""
+        Returns a dictionary representing the "args" of an example tool call.
+        This should NOT be a ToolCall dict - i.e. it should not
+        have {"name", "id", "args"} keys.
+        """
+
+================
+File: tests/unit_tests/test_tavily_extract.py
+================
+class TestTavilyExtractToolUnit(ToolsUnitTests)
+⋮----
+@pytest.fixture(autouse=True)
+    def setup_mocks(self, request: pytest.FixtureRequest) -> MagicMock
+⋮----
+# Patch the validation_environment class method
+patcher = patch(
+mock_validate = patcher.start()
+# Use pytest's cleanup mechanism
+⋮----
+@property
+    def tool_constructor(self) -> Type[TavilyExtract]
+⋮----
+@property
+    def tool_constructor_params(self) -> dict
+⋮----
+# Parameters for initializing the TavilyExtract tool
+⋮----
+@property
+    def tool_invoke_params_example(self) -> dict
+⋮----
+"""
+        Returns a dictionary representing the "args" of an example tool call.
+        This should NOT be a ToolCall dict - i.e. it should not
+        have {"name", "id", "args"} keys.
+        """
+
+================
+File: tests/unit_tests/test_tavily_map.py
+================
+class TestTavilyMapToolUnit(ToolsUnitTests):  # Fixed class name to match its purpose
+⋮----
+@pytest.fixture(autouse=True)
+    def setup_mocks(self, request: pytest.FixtureRequest) -> MagicMock
+⋮----
+# Patch the validation_environment class method
+patcher = patch(
+mock_validate = patcher.start()
+# Use pytest's cleanup mechanism
+⋮----
+@property
+    def tool_constructor(self) -> Type[TavilyMap]
+⋮----
+@property
+    def tool_constructor_params(self) -> dict
+⋮----
+# Parameters for initializing the TavilyMap tool
+⋮----
+@property
+    def tool_invoke_params_example(self) -> dict
+⋮----
+"""
+        Returns a dictionary representing the "args" of an example tool call.
+        This should NOT be a ToolCall dict - i.e. it should not
+        have {"name", "id", "args"} keys.
+        """
+
+================
+File: tests/unit_tests/test_tavily_search.py
+================
+class TestTavilySearchToolUnit(ToolsUnitTests):  # Fixed class name to match its purpose
+⋮----
+@pytest.fixture(autouse=True)
+    def setup_mocks(self, request: pytest.FixtureRequest) -> MagicMock
+⋮----
+# Patch the validation_environment class method
+patcher = patch(
+mock_validate = patcher.start()
+# Use pytest's cleanup mechanism
+⋮----
+@property
+    def tool_constructor(self) -> Type[TavilySearch]
+⋮----
+@property
+    def tool_constructor_params(self) -> dict
+⋮----
+# Parameters for initializing the TavilySearch tool
+⋮----
+@property
+    def tool_invoke_params_example(self) -> dict
+⋮----
+"""
+        Returns a dictionary representing the "args" of an example tool call.
+        This should NOT be a ToolCall dict - i.e. it should not
+        have {"name", "id", "args"} keys.
+        """
+
+================
+File: .gitignore
+================
+__pycache__
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.mypy_cache_test
+.env
+.venv*
+
+================
+File: LICENSE
+================
+MIT License
+
+Copyright (c) 2024 LangChain, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================
+File: Makefile
+================
+.PHONY: all format lint test tests integration_tests docker_tests help extended_tests
+
+# Default target executed when no arguments are given to make.
+all: help
+
+# Define a variable for the test file path.
+TEST_FILE ?= tests/unit_tests/
+integration_test integration_tests: TEST_FILE = tests/integration_tests/
+
+
+# unit tests are run with the --disable-socket flag to prevent network calls
+test tests:
+	poetry run pytest --disable-socket --allow-unix-socket $(TEST_FILE)
+
+test_watch:
+	poetry run ptw --snapshot-update --now . -- -vv $(TEST_FILE)
+
+# integration tests are run without the --disable-socket flag to allow network calls
+integration_test integration_tests:
+	poetry run pytest $(TEST_FILE)
+
+######################
+# LINTING AND FORMATTING
+######################
+
+# Define a variable for Python and notebook files.
+PYTHON_FILES=.
+MYPY_CACHE=.mypy_cache
+lint format: PYTHON_FILES=.
+lint_diff format_diff: PYTHON_FILES=$(shell git diff --relative=libs/partners/tavily --name-only --diff-filter=d master | grep -E '\.py$$|\.ipynb$$')
+lint_package: PYTHON_FILES=langchain_tavily
+lint_tests: PYTHON_FILES=tests
+lint_tests: MYPY_CACHE=.mypy_cache_test
+
+lint lint_diff lint_package lint_tests:
+	[ "$(PYTHON_FILES)" = "" ] || poetry run ruff check $(PYTHON_FILES)
+	[ "$(PYTHON_FILES)" = "" ] || poetry run ruff format $(PYTHON_FILES) --diff
+	[ "$(PYTHON_FILES)" = "" ] || mkdir -p $(MYPY_CACHE) && poetry run python -m mypy $(PYTHON_FILES) --cache-dir $(MYPY_CACHE)
+
+format format_diff:
+	[ "$(PYTHON_FILES)" = "" ] || poetry run ruff format $(PYTHON_FILES)
+	[ "$(PYTHON_FILES)" = "" ] || poetry run ruff check --select I --fix $(PYTHON_FILES)
+
+spell_check:
+	poetry run codespell --toml pyproject.toml
+
+spell_fix:
+	poetry run codespell --toml pyproject.toml -w
+
+check_imports: $(shell find langchain_tavily -name '*.py')
+	poetry run python ./scripts/check_imports.py $^
+
+######################
+# HELP
+######################
+
+help:
+	@echo '----'
+	@echo 'check_imports				- check imports'
+	@echo 'format                       - run code formatters'
+	@echo 'lint                         - run linters'
+	@echo 'test                         - run unit tests'
+	@echo 'tests                        - run unit tests'
+	@echo 'test TEST_FILE=<test_file>   - run all tests in file'
+
+================
+File: pyproject.toml
+================
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "langchain-tavily"
+version = "0.2.5"
+description = "An integration package connecting Tavily and LangChain"
+authors = []
+readme = "README.md"
+repository = "https://github.com/tavily-ai/langchain-tavily"
+license = "MIT"
+
+[tool.mypy]
+disallow_untyped_defs = "True"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<4.0"
+langchain-core = "^0.3.15"
+langchain = "^0.3.20"
+aiohttp = "^3.11.14"
+requests = "^2.32.3"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "T201"]
+
+[tool.coverage.run]
+omit = ["tests/*"]
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers --strict-config --durations=5"
+markers = [
+    "compile: mark placeholder test used to compile integration tests without running them",
+]
+asyncio_mode = "auto"
+
+[tool.poetry.group.test]
+optional = true
+
+[tool.poetry.group.codespell]
+optional = true
+
+[tool.poetry.group.test_integration]
+optional = true
+
+[tool.poetry.group.lint]
+optional = true
+
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
+ruff = "0.5.0"
+codespell = "^2.4.1"
+mypy = "^1.15.0"
+types-requests = "^2.32.0.20250328"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.4.3"
+pytest-asyncio = "^0.23.2"
+pytest-socket = "^0.7.0"
+pytest-watcher = "^0.3.4"
+langchain-tests = "^0.3.5"
+
+[tool.poetry.group.codespell.dependencies]
+codespell = "^2.2.6"
+
+[tool.poetry.group.test_integration.dependencies]
+
+[tool.poetry.group.lint.dependencies]
+ruff = "^0.5"
+
+[tool.poetry.group.typing.dependencies]
+mypy = "^1.10"
+
+================
+File: README.md
+================
+# 🦜️🔗 LangChain Tavily
+
+[![PyPI version](https://badge.fury.io/py/langchain-tavily.svg)](https://badge.fury.io/py/langchain-tavily)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Downloads](https://static.pepy.tech/badge/langchain-tavily)](https://pepy.tech/project/langchain-tavily)
+
+This package contains the LangChain integration with [Tavily](https://tavily.com/)
+
+# **Introducing [tavily-crawl](https://docs.tavily.com/documentation/api-reference/endpoint/crawl) + [tavily-map](https://docs.tavily.com/documentation/api-reference/endpoint/map) in v0.2.4!** 
+Two powerful new tools have joined the Tavily family! Upgrade now to access:
+```bash
+pip install -U langchain-tavily
+```
+Don't miss out on these exciting new features! Check out the [full documentation](https://docs.tavily.com/) to learn more.
+
+---
+
+## Installation
+
+```bash
+pip install -U langchain-tavily
+```
+
+### Credentials
+
+We also need to set our Tavily API key. You can get an API key by visiting [this site](https://app.tavily.com/sign-in) and creating an account.
+
+```bash
+import getpass
+import os
+
+if not os.environ.get("TAVILY_API_KEY"):
+    os.environ["TAVILY_API_KEY"] = getpass.getpass("Tavily API key:\n")
+```
+
+## Tavily Search
+
+Here we show how to instantiate an instance of the Tavily search tool. The tool accepts various parameters to customize the search. After instantiation we invoke the tool with a simple query. This tool allows you to complete search queries using Tavily's Search API endpoint.
+
+### Instantiation
+
+The tool accepts various parameters during instantiation:
+
+- `max_results` (optional, int): Maximum number of search results to return. Default is 5.
+- `topic` (optional, str): Category of the search. Can be "general", "news", or "finance". Default is "general".
+- `include_answer` (optional, bool | str): Include an answer to original query in results. Default is False. String options include "basic" (quick answer) or "advanced" (detailed answer). If True, defaults to "basic".
+- `include_raw_content` (optional,  bool | str): Include the cleaned and parsed HTML content of each search result. "markdown" returns search result content in markdown format. "text" returns the plain text from the results and may increase latency. If True, defaults to "markdown"
+- `include_images` (optional, bool): Include a list of query related images in the response. Default is False.
+- `include_image_descriptions` (optional, bool): Include descriptive text for each image. Default is False.
+- `search_depth` (optional, str): Depth of the search, either "basic" or "advanced". Default is "basic".
+- `time_range` (optional, str): The time range back from the current date to filter results - "day", "week", "month", or "year". Default is None.
+- `include_domains` (optional, List[str]): List of domains to specifically include. Default is None.
+- `exclude_domains` (optional, List[str]): List of domains to specifically exclude. Default is None.
+- `country` (optional, str): Boost search results from a specific country. This will prioritize content from the selected country in the search results. Available only if topic is general.
+
+For a comprehensive overview of the available parameters, refer to the [Tavily Search API documentation](https://docs.tavily.com/documentation/api-reference/endpoint/search)
+
+```python
+from langchain_tavily import TavilySearch
+
+tool = TavilySearch(
+    max_results=5,
+    topic="general",
+    # include_answer=False,
+    # include_raw_content=False,
+    # include_images=False,
+    # include_image_descriptions=False,
+    # search_depth="basic",
+    # time_range="day",
+    # include_domains=None,
+    # exclude_domains=None,
+    # country=None
+)
+```
+
+### Invoke directly with args
+
+The Tavily search tool accepts the following arguments during invocation:
+
+- `query` (required): A natural language search query
+- The following arguments can also be set during invocation : `include_images`, `search_depth` , `time_range`, `include_domains`, `exclude_domains`, `include_images`
+- For reliability and performance reasons, certain parameters that affect response size cannot be modified during invocation: `include_answer` and `include_raw_content`. These limitations prevent unexpected context window issues and ensure consistent results.
+
+NOTE: If you set an argument during instantiation this value will persist and overwrite the value passed during invocation.
+
+```python
+# Basic query
+tool.invoke({"query": "What happened at the last wimbledon"})
+```
+
+output:
+
+```bash
+{
+ 'query': 'What happened at the last wimbledon',
+ 'follow_up_questions': None,
+ 'answer': None,
+ 'images': [],
+ 'results':
+ [{'url': 'https://en.wikipedia.org/wiki/Wimbledon_Championships',
+   'title': 'Wimbledon Championships - Wikipedia',
+   'content': 'Due to the COVID-19 pandemic, Wimbledon 2020 was cancelled ...',
+   'score': 0.62365627198,
+   'raw_content': None},
+    ......................................................................
+    {'url': 'https://www.cbsnews.com/news/wimbledon-men-final-carlos-alcaraz-novak-djokovic/',
+    'title': "Carlos Alcaraz beats Novak Djokovic at Wimbledon men's final to ...",
+    'content': 'In attendance on Sunday was Catherine, the Princess of Wales ...',
+    'score': 0.5154731446,
+    'raw_content': None}],
+  'response_time': 2.3
+}
+```
+
+### Agent Tool Calling
+
+We can use our tools directly with an agent executor by binding the tool to the agent. This gives the agent the ability to dynamically set the available arguments to the Tavily search tool.
+
+In the below example when we ask the agent to find "What is the most popular sport in the world? include only wikipedia sources" the agent will dynamically set the argments and invoke Tavily search tool : Invoking `tavily_search` with `{'query': 'most popular sport in the world', 'include_domains': ['wikipedia.org'], 'search_depth': 'basic'}`
+
+```python
+# !pip install -qU langchain langchain-openai langchain-tavily
+from typing import Any, Dict, Optional
+import datetime
+
+from langchain.agents import create_openai_tools_agent, AgentExecutor
+from langchain.chat_models import init_chat_model
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_openai import ChatOpenAI
+from langchain_tavily import TavilySearch
+from langchain.schema import HumanMessage, SystemMessage
+
+# Initialize LLM
+llm = init_chat_model(model="gpt-4o", model_provider="openai", temperature=0)
+
+# Initialize Tavily Search Tool
+tavily_search_tool = TavilySearch(
+    max_results=5,
+    topic="general",
+)
+
+# Set up Prompt with 'agent_scratchpad'
+today = datetime.datetime.today().strftime("%D")
+prompt = ChatPromptTemplate.from_messages([
+    ("system", f"""You are a helpful reaserch assistant, you will be given a query and you will need to
+    search the web for the most relevant information. The date today is {today}."""),
+    MessagesPlaceholder(variable_name="messages"),
+    MessagesPlaceholder(variable_name="agent_scratchpad"),  # Required for tool calls
+])
+
+# Create an agent that can use tools
+agent = create_openai_tools_agent(
+    llm=llm,
+    tools=[tavily_search_tool],
+    prompt=prompt
+)
+
+# Create an Agent Executor to handle tool execution
+agent_executor = AgentExecutor(agent=agent, tools=[tavily_search_tool], verbose=True)
+
+user_input =  "What is the most popular sport in the world? include only wikipedia sources"
+
+# Construct input properly as a dictionary
+response = agent_executor.invoke({"messages": [HumanMessage(content=user_input)]})
+```
+
+## Tavily Extract
+
+Here we show how to instantiate an instance of the Tavily extract tool. After instantiation we invoke the tool with a list of URLs. This tool allows you to extract content from URLs using Tavily's Extract API endpoint.
+
+### Instantiation
+
+The tool accepts various parameters during instantiation:
+
+- `extract_depth` (optional, str): The depth of the extraction, either "basic" or "advanced". Default is "basic ".
+- `include_images` (optional, bool): Whether to include images in the extraction. Default is False.
+- `format` (optional, str): The format of the extracted web page content. "markdown" returns content in markdown format. "text" returns plain text and may increase latency.
+
+For a comprehensive overview of the available parameters, refer to the [Tavily Extract API documentation](https://docs.tavily.com/documentation/api-reference/endpoint/extract)
+
+```python
+from langchain_tavily import TavilyExtract
+
+tool = TavilyExtract(
+    extract_depth="advanced",
+    include_images=False,
+    format="markdown"
+)
+```
+
+### Invoke directly with args
+
+The Tavily extract tool accepts the following arguments during invocation:
+
+- `urls` (required): A list of URLs to extract content from.
+- Both `extract_depth` and `include_images` can also be set during invocation
+
+NOTE: If you set an argument during instantiation this value will persist and overwrite the value passed during invocation.
+
+```python
+# Extract content from a URL
+result = tool.invoke({
+    "urls": ["https://en.wikipedia.org/wiki/Lionel_Messi"]
+})
+```
+
+output:
+
+```bash
+{
+    'results': [{
+        'url': 'https://en.wikipedia.org/wiki/Lionel_Messi',
+        'raw_content': 'Lionel Messi\nLionel Andrés "Leo" Messi...',
+        'images': []
+    }],
+    'failed_results': [],
+    'response_time': 0.79
+}
+```
+
+## Tavily Crawl
+
+Here we show how to instantiate an instance of the Tavily crawl tool. After instantiation we invoke the tool with a URL. This tool allows you to crawl websites using Tavily's Crawl API endpoint.
+
+### Instantiation
+
+The tool accepts various parameters during instantiation:
+
+- `max_depth` (optional, int): Max depth of the crawl from base URL. Default is 1.
+- `max_breadth` (optional, int): Max number of links to follow per page. Default is 20.
+- `limit` (optional, int): Total number of links to process before stopping. Default is 50.
+- `instructions` (optional, str): Natural language instructions to guide the crawler. Default is None.
+- `select_paths` (optional, List[str]): Regex patterns to select specific URL paths. Default is None.
+- `select_domains` (optional, List[str]): Regex patterns to select specific domains. Default is None.
+- `exclude_paths` (optional, List[str]): Regex patterns to exclude URLs with specific path patterns 
+- `exclude_domains` (optional, List[str]): Regex patterns to exclude specific domains or subdomains from crawling 
+- `allow_external` (optional, bool): Allow following external domain links. Default is False.
+- `include_images` (optional, bool): Whether to include images in the crawl results.
+- `categories` (optional, str): Filter URLs by predefined categories. Can be "Careers", "Blogs", "Documentation", "About", "Pricing", "Community", "Developers", "Contact", or "Media". Default is None.
+- `extract_depth` (optional, str): Depth of content extraction, either "basic" or "advanced". Default is "basic".
+- `format` (optional, str): The format of the extracted web page content. "markdown" returns content in markdown format. "text" returns plain text and may increase latency.
+
+For a comprehensive overview of the available parameters, refer to the [Tavily Crawl API documentation](https://docs.tavily.com/documentation/api-reference/endpoint/crawl)
+
+```python
+from langchain_tavily import TavilyCrawl
+
+tool = TavilyCrawl(
+    max_depth=1,
+    max_breadth=20,
+    limit=50,
+    # instructions=None,
+    # select_paths=None,
+    # select_domains=None,
+    # exclude_paths=None,
+    # exclude_domains=None,
+    # allow_external=False,
+    # include_images=False,
+    # categories=None,
+    # extract_depth=None
+    # format=None
+)
+```
+
+### Invoke directly with args
+
+The Tavily crawl tool accepts the following arguments during invocation:
+- `url` (required): The root URL to begin the crawl.
+- All other parameters can also be set during invocation: `max_depth`, `max_breadth`, `limit`, `instructions`, `select_paths`, `select_domains`, `exclude_paths`, `exclude_domains`,`allow_external`, `include_images`, `categories`, and `extract_depth`
+
+NOTE: If you set an argument during instantiation this value will persist and overwrite the value passed during invocation.
+
+```python
+# Basic crawl of a website
+result = tool.invoke({
+    "url": "https://docs.tavily.com",
+    "instructions": "Find SDK documentation",
+    "categories": ["Documentation"]
+})
+```
+
+output:
+```bash
+{
+    'base_url': 'https://docs.tavily.com',
+    'results': [{
+        'url': 'https://docs.tavily.com/sdk/python',
+        'raw_content': 'Python SDK Documentation...',
+        'images': []
+    },
+    {
+        'url': 'https://docs.tavily.com/sdk/javascript',
+        'raw_content': 'JavaScript SDK Documentation...',
+        'images': []
+    }],
+    'response_time': 10.28
+}
+```
+
+## Tavily Map
+
+Here we show how to instantiate an instance of the Tavily Map tool. After instantiation we invoke the tool with a URL. This tool allows you to create a structured map of website URLs using Tavily's Map API endpoint.
+
+### Instantiation
+
+The tool accepts various parameters during instantiation:
+
+- `max_depth` (optional, int): Max depth of the mapping from base URL. Default is 1.
+- `max_breadth` (optional, int): Max number of links to follow per page. Default is 20.
+- `limit` (optional, int): Total number of links to process before stopping. Default is 50.
+- `instructions` (optional, str): Natural language instructions to guide the mapping.
+- `select_paths` (optional, List[str]): Regex patterns to select specific URL paths.
+- `select_domains` (optional, List[str]): Regex patterns to select specific domains.
+- `exclude_paths` (optional, List[str]): Regex patterns to exclude URLs with specific path patterns 
+- `exclude_domains` (optional, List[str]): Regex patterns to exclude specific domains or subdomains from mapping 
+- `allow_external` (optional, bool): Allow following external domain links. Default is False.
+- `categories` (optional, str): Filter URLs by predefined categories ("Careers", "Blogs", "Documentation", "About", "Pricing", "Community", "Developers", "Contact", "Media").
+
+For a comprehensive overview of the available parameters, refer to the [Tavily Map API documentation](https://docs.tavily.com/documentation/api-reference/endpoint/map)
+
+```python
+from langchain_tavily import TavilyMap
+
+tool = TavilyMap(
+    max_depth=2,
+    max_breadth=20,
+    limit=50,
+    # instructions=None,
+    # select_paths=None,
+    # select_domains=None,
+    # exclude_paths=None,
+    # exclude_domains=None,
+    # allow_external=False,
+    # categories=None,
+)
+```
+
+### Invoke directly with args
+
+The Tavily map tool accepts the following arguments during invocation:
+- `url` (required): The root URL to begin the mapping.
+- All other parameters can also be set during invocation: `max_depth`, `max_breadth`, `limit`, `instructions`, `select_paths`, `select_domains`, `exclude_paths`, `exclude_domains`, `allow_external`, and `categories`.
+
+NOTE: If you set an argument during instantiation this value will persist and overwrite the value passed during invocation.
+
+```python
+# Basic mapping of a website
+result = tool.invoke({
+    "url": "https://docs.tavily.com",
+    "instructions": "Find SDK documentation",
+    "categories": ["Documentation"]
+})
+```
+
+output:
+```bash
+{
+    'base_url': 'https://docs.tavily.com',
+    'results': ['https://docs.tavily.com/sdk', 'https://docs.tavily.com/sdk/python/reference', 'https://docs.tavily.com/sdk/javascript/reference', 'https://docs.tavily.com/sdk/python/quick-start', 'https://docs.tavily.com/sdk/javascript/quick-start']
+    'response_time': 10.28
+}
+```
+
+
+
+## Tavily Research Agent
+
+This example demonstrates how to build a powerful web research agent using Tavily's search and extract Langchain tools.
+
+### Features
+
+- Internet Search: Query the web for up-to-date information using Tavily's search API
+- Content Extraction: Extract and analyze specific content from web pages
+- Seamless Integration: Works with OpenAI's function calling capability for reliable tool use
+
+```python
+# !pip install -qU langchain langchain-openai langchain-tavily
+from typing import Any, Dict, Optional
+import datetime
+
+from langchain.agents import create_openai_tools_agent, AgentExecutor
+from langchain.chat_models import init_chat_model
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_openai import ChatOpenAI
+from langchain_tavily import TavilySearch, TavilyExtract
+from langchain.schema import HumanMessage, SystemMessage
+
+# Initialize LLM
+llm = ChatOpenAI(temperature=0, model="gpt-4o")
+
+# Initialize Tavily Search Tool
+tavily_search_tool = TavilySearch(
+    max_results=5,
+    topic="general",
+)
+# Initialize Tavily Extract Tool
+tavily_extract_tool = TavilyExtract()
+
+tools = [tavily_search_tool, tavily_extract_tool]
+
+# Set up Prompt with 'agent_scratchpad'
+today = datetime.datetime.today().strftime("%D")
+prompt = ChatPromptTemplate.from_messages([
+    ("system", f"""You are a helpful reaserch assistant, you will be given a query and you will need to
+    search the web for the most relevant information then extract content to gain more insights. The date today is {today}."""),
+    MessagesPlaceholder(variable_name="messages"),
+    MessagesPlaceholder(variable_name="agent_scratchpad"),  # Required for tool calls
+])
+# Create an agent that can use tools
+agent = create_openai_tools_agent(
+    llm=llm,
+    tools=tools,
+    prompt=prompt
+)
+
+# Create an Agent Executor to handle tool execution
+agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+
+user_input =  "Research the latest developments in quantum computing and provide a detailed summary of how it might impact cybersecurity in the next decade."
+
+# Construct input properly as a dictionary
+response = agent_executor.invoke({"messages": [HumanMessage(content=user_input)]})
+```
+
+## Tavily Search and Crawl Agent Example
+
+This example demonstrates how to build a powerful web research agent using Tavily's search and crawl Langchain tools to find and analyze information from websites.
+
+### Features
+
+- Internet Search: Query the web for up-to-date information using Tavily's search API
+- Website Crawling: Crawl websites to find specific information and content
+- Seamless Integration: Works with OpenAI's function calling capability for reliable tool use
+
+```python
+from typing import Any, Dict, Optional
+import datetime
+
+from langchain.agents import create_openai_tools_agent, AgentExecutor
+from langchain.chat_models import init_chat_model
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_openai import ChatOpenAI
+from langchain_tavily import TavilySearch, TavilyCrawl
+from langchain.schema import HumanMessage, SystemMessage
+
+# Initialize LLM
+llm = init_chat_model(model="gpt-4.1", model_provider="openai", temperature=0)
+
+# Initialize Tavily Search Tool
+tavily_search_tool = TavilySearch(
+    max_results=5,
+    topic="general",
+)
+
+tavily_crawl_tool = TavilyCrawl()
+
+# Set up Prompt with 'agent_scratchpad'
+today = datetime.datetime.today().strftime("%D")
+prompt = ChatPromptTemplate.from_messages([
+    ("system", f"""You are a helpful reaserch assistant, you will be given a query and you will need to
+    search the web and crawl the web for the most relevant information. The date today is {today}."""),
+    MessagesPlaceholder(variable_name="messages"),
+    MessagesPlaceholder(variable_name="agent_scratchpad"),  # Required for tool calls
+])
+
+# Create an agent that can use tools
+agent = create_openai_tools_agent(
+    llm=llm,
+    tools=[tavily_search_tool, tavily_crawl_tool],
+    prompt=prompt
+)
+
+# Create an Agent Executor to handle tool execution
+agent_executor = AgentExecutor(agent=agent, tools=[tavily_search_tool, tavily_crawl_tool], verbose=True)
+
+user_input =  "Find the base url of apple and then crawl the base url to find all iphone models"
+
+# Construct input properly as a dictionary
+response = agent_executor.invoke({"messages": [HumanMessage(content=user_input)]})
+```
+
+This example shows how to:
+1. Initialize both Tavily Search and Crawl tools
+2. Set up an agent with a custom prompt that includes the current date
+3. Create an agent executor that can use both tools
+4. Process a user query that requires both searching and crawling capabilities
+
+The agent will first use the search tool to find Apple's base URL, then use the crawl tool to explore the website and find information about iPhone models.
+
+
+
+
+================================================================
+End of Codebase
+================================================================

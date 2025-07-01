@@ -1,0 +1,123 @@
+실행해야되는 스크립트를 작성해서 @scripts/ 에 작성해주면 좋겠어. langgraph dev 와 google adk 실행이겠지?
+
+---
+
+> 실행해야되는 스크립트를 작성해서 @scripts/ 에 작성해주면 좋겠어. langgraph dev 와 google adk 실행이겠지?
+  ⎿  Listed directory scripts/
+
+⏺ LangGraph 개발과 Google ADK 실행을 위한 스크립트를 작성하겠습니다.
+
+⏺ Write(scripts/dev_langgraph.sh)
+  ⎿  Wrote 53 lines to scripts/dev_langgraph.sh   
+     #!/bin/bash
+     # LangGraph 개발 환경 실행 스크립트
+     echo "=== LangGraph 개발 환경 시작 ==="
+     echo ""
+     # 환경 변수 로드
+     if [ -f .env ]; then
+         export $(cat .env | grep -v '^#' | xargs)
+     fi
+     … +43 lines (ctrl+r to expand)
+
+⏺ Bash(chmod +x /Users/jhj/Desktop/personal/ttimes_guide_coding/scripts/dev_langgraph.sh)
+  ⎿  (No content)
+
+⏺ Write(scripts/run_google_adk.sh)
+  ⎿  Wrote 53 lines to scripts/run_google_adk.sh         
+     #!/bin/bash
+     # Google ADK 실행 스크립트
+     echo "=== Google ADK UnifiedResearch Agent 실행 ==="
+     echo ""
+     # 환경 변수 로드
+     if [ -f .env ]; then
+         export $(cat .env | grep -v '^#' | xargs)
+     fi
+     … +43 lines (ctrl+r to expand)
+
+⏺ Bash(chmod +x /Users/jhj/Desktop/personal/ttimes_guide_coding/scripts/run_google_adk.sh)
+  ⎿  (No content)
+
+⏺ Write(scripts/start_a2a_servers.sh)
+  ⎿  Wrote 64 lines to scripts/start_a2a_servers.sh
+     #!/bin/bash
+     # A2A 서버들만 실행하는 스크립트
+     echo "=== A2A 서버 시작 ==="
+     echo ""
+     # 환경 변수 로드
+     if [ -f .env ]; then
+         export $(cat .env | grep -v '^#' | xargs)
+     fi
+     … +54 lines (ctrl+r to expand)
+
+⏺ Bash(chmod +x /Users/jhj/Desktop/personal/ttimes_guide_coding/scripts/start_a2a_servers.sh)
+  ⎿  (No content)
+
+⏺ Write(scripts/quick_test.sh)
+  ⎿  Wrote 89 lines to scripts/quick_test.sh       
+     #!/bin/bash
+     # 빠른 테스트를 위한 스크립트
+     echo "=== TTimes Guide Coding 빠른 테스트 ==="
+     echo ""
+     # 환경 변수 로드
+     if [ -f .env ]; then
+         export $(cat .env | grep -v '^#' | xargs)
+     fi
+     … +79 lines (ctrl+r to expand)
+
+⏺ Bash(chmod +x /Users/jhj/Desktop/personal/ttimes_guide_coding/scripts/quick_test.sh)
+  ⎿  (No content)
+
+⏺ Write(scripts/README.md)
+  ⎿  Wrote 83 lines to scripts/README.md                                               
+     # Scripts 디렉토리 가이드
+     이 디렉토리는 TTimes Guide Coding 프로젝트의 실행 및 테스트 스크립트를 포함합니다.
+     ## 🚀 실행 스크립트
+     ### 1. `dev_langgraph.sh`
+     LangGraph 개발 환경을 시작합니다.
+     ```bash
+     ./scripts/dev_langgraph.sh
+     … +73 lines (ctrl+r to expand)
+
+⏺ 실행 스크립트 작성 완료
+
+  다음과 같은 실행 스크립트들을 생성했습니다:
+
+  📄 생성된 스크립트
+
+  1. dev_langgraph.sh - LangGraph 개발 환경
+    - LangGraph Studio 실행
+    - 선택적으로 LangConnect와 MCP 서버 시작
+    - 개별 에이전트 테스트 가능
+  2. run_google_adk.sh - Google ADK 실행
+    - CLI 모드 (대화형)
+    - Web UI 모드 (ADK 웹 인터페이스)
+    - API 서버 모드 (REST API)
+  3. start_a2a_servers.sh - A2A 서버 실행
+    - 모든 A2A 서버를 개별적으로 시작
+    - MCP 서버 포함
+    - 헬스체크 URL 제공
+  4. quick_test.sh - 빠른 테스트
+    - MCP 서버 테스트
+    - LangGraph 에이전트 단일 테스트
+    - A2A 서버 헬스체크
+    - 전체 시스템 API 테스트
+  5. README.md - 스크립트 가이드
+    - 각 스크립트 사용법 설명
+    - 개발 워크플로우 가이드
+
+  🚀 사용 예시
+
+  # LangGraph 개발
+  ./scripts/dev_langgraph.sh
+
+  # Google ADK 실행 (CLI 모드)
+  ./scripts/run_google_adk.sh
+  # 1 선택 (CLI 모드)
+
+  # A2A 서버만 실행
+  ./scripts/start_a2a_servers.sh
+
+  # 빠른 테스트
+  ./scripts/quick_test.sh
+
+  모든 스크립트에 실행 권한이 부여되었으므로 바로 사용할 수 있습니다.
