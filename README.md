@@ -303,23 +303,21 @@ After Claude helps you build your server:
 
 ## A2A 개발 가이드
 
----
-
 ### Reference
 
-[LangChain](https://python.langchain.com/llms.txt)
-[LangConnect-Client](https://github.com/teddynote-lab/LangConnect-Client)
-[LangGraph](https://langchain-ai.github.io/langgraph/llms-full.txt)
-[LangChain-MCP-Adapter(client)](https://langchain-ai.github.io/langgraph/reference/mcp/)
-[ModelContextProtocol](https://modelcontextprotocol.io/llms-full.txt)
-[MCP-Python-SDK](https://github.com/modelcontextprotocol/python-sdk)
-[FastMCP](https://github.com/jlowin/fastmcp)
-[FastMCP-llms.txt](https://gofastmcp.com/llms-full.txt)
-[A2A-SDK](https://github.com/a2aproject/a2a-python)
-[A2A-Directory](https://github.com/sing1ee/a2a-directory)
+[LangChain](https://python.langchain.com/llms.txt)  
+[LangConnect-Client](https://github.com/teddynote-lab/LangConnect-Client)  
+[LangGraph](https://langchain-ai.github.io/langgraph/llms-full.txt)  
+[LangChain-MCP-Adapter(client)](https://langchain-ai.github.io/langgraph/reference/mcp/)  
+[ModelContextProtocol](https://modelcontextprotocol.io/llms-full.txt)  
+[MCP-Python-SDK](https://github.com/modelcontextprotocol/python-sdk)  
+[FastMCP](https://github.com/jlowin/fastmcp)  
+[FastMCP-llms.txt](https://gofastmcp.com/llms-full.txt)  
+[A2A-SDK](https://github.com/a2aproject/a2a-python)  
+[A2A-Directory](https://github.com/sing1ee/a2a-directory)  
 
 ### Cursor Tips
 
-[REPOMIX](https://repomix.com/)
-[CURSOR-Rules](https://docs.cursor.com/context/rules)
-[CURSOR-RIPER-Framework](https://github.com/johnpeterman72/CursorRIPER.sigma)
+[REPOMIX](https://repomix.com/)  
+[CURSOR-Rules](https://docs.cursor.com/context/rules)  
+[CURSOR-RIPER-Framework](https://github.com/johnpeterman72/CursorRIPER.sigma)  
