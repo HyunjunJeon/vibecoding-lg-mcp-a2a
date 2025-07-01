@@ -1,0 +1,201 @@
+services:
+  # Infrastructure Services
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: ttimes_postgres
+    environment:
+      POSTGRES_USER: ttimes
+      POSTGRES_PASSWORD: ttimes123
+      POSTGRES_DB: ttimes_guide
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ttimes"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ttimes_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ttimes_redis
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass redis123
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ttimes_network
+
+  # LangConnect API Server
+  langconnect:
+    build:
+      context: ../langconnect
+      dockerfile: Dockerfile
+    container_name: ttimes_langconnect
+    ports:
+      - "8080:8080"
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=ttimes
+      - POSTGRES_PASSWORD=ttimes123
+      - POSTGRES_DB=ttimes_guide
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION}
+      - AZURE_OPENAI_DEPLOYMENT_NAME=${AZURE_OPENAI_DEPLOYMENT_NAME}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ttimes_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # All-Search MCP Server (통합 검색)
+  all-search-mcp:
+    build: 
+      context: ..
+      dockerfile: docker/Dockerfile.mcp
+    container_name: ttimes_all_search_mcp
+    ports:
+      - "3000:3000"
+    environment:
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - LANGCONNECT_URL=http://langconnect:8080
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=3000
+    depends_on:
+      langconnect:
+        condition: service_healthy
+    networks:
+      - ttimes_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Agent Services
+  research-agent:
+    build: 
+      context: ..
+      dockerfile: docker/Dockerfile.agent
+    container_name: ttimes_research_agent
+    command: ["uv", "run", "python", "-m", "agents.a2a_servers.research_a2a_server"]
+    ports:
+      - "8001:8001"
+    environment:
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION}
+      - AZURE_OPENAI_DEPLOYMENT_NAME=${AZURE_OPENAI_DEPLOYMENT_NAME}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - LANGCONNECT_URL=http://langconnect:8080
+      - MCP_SERVER_URL=http://all-search-mcp:3000
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8001
+      - LOG_LEVEL=INFO
+    depends_on:
+      all-search-mcp:
+        condition: service_healthy
+    networks:
+      - ttimes_network
+    restart: unless-stopped
+
+  planning-agent:
+    build: 
+      context: ..
+      dockerfile: docker/Dockerfile.agent
+    container_name: ttimes_planning_agent
+    command: ["uv", "run", "python", "-m", "agents.a2a_servers.planning_a2a_server_v3"]
+    ports:
+      - "8003:8003"
+    environment:
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION}
+      - AZURE_OPENAI_DEPLOYMENT_NAME=${AZURE_OPENAI_DEPLOYMENT_NAME}
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8003
+      - LOG_LEVEL=INFO
+    networks:
+      - ttimes_network
+    restart: unless-stopped
+
+  report-writing-agent:
+    build: 
+      context: ..
+      dockerfile: docker/Dockerfile.agent
+    container_name: ttimes_report_writing_agent
+    command: ["uv", "run", "python", "-m", "agents.a2a_servers.report_writing_a2a_server"]
+    ports:
+      - "8004:8004"
+    environment:
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION}
+      - AZURE_OPENAI_DEPLOYMENT_NAME=${AZURE_OPENAI_DEPLOYMENT_NAME}
+      - POSTGRES_URL=postgresql://ttimes:ttimes123@postgres:5432/ttimes_guide
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8004
+      - LOG_LEVEL=INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ttimes_network
+    restart: unless-stopped
+
+  # Main Orchestrator
+  orchestrator:
+    build: 
+      context: ..
+      dockerfile: docker/Dockerfile.agent
+    container_name: ttimes_orchestrator
+    command: ["uv", "run", "python", "a2a_client/simple_orchestrator.py"]
+    ports:
+      - "8000:8000"
+    environment:
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION}
+      - AZURE_OPENAI_DEPLOYMENT_NAME=${AZURE_OPENAI_DEPLOYMENT_NAME}
+      - PLANNING_AGENT_URL=http://planning-agent:8003/
+      - RESEARCH_AGENT_URL=http://research-agent:8001/
+      - REPORT_WRITING_AGENT_URL=http://report-writing-agent:8004/
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8000
+      - LOG_LEVEL=INFO
+    depends_on:
+      - research-agent
+      - planning-agent  
+      - report-writing-agent
+    networks:
+      - ttimes_network
+    restart: unless-stopped
+
+
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  ttimes_network:
+    driver: bridge

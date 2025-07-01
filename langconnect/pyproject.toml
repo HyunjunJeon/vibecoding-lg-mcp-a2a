@@ -1,0 +1,129 @@
+[project]
+name = "langconnect"
+version = "0.0.1"
+description = "LangConnect: A RAG service"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.6",
+    "langchain>=0.3.20",
+    "langchain-openai>=0.3.7",
+    "langchain-community>=0.0.20",
+    "langchain-core>=0.2.37",
+    "langchain-text-splitters>=0.0.1",
+    "langchain-postgres>=0.0.2",
+    "langgraph-sdk>=0.1.48",
+    "python-dotenv>=1.0.1",
+    "uvicorn>=0.34.0",
+    "aiohttp>=3.11.13",
+    "python-multipart>=0.0.20",
+    "httpx>=0.28.1",
+    "beautifulsoup4>=4.12.3",
+    "asyncpg>=0.30.0",
+    "psycopg[binary]>=3.2.6",
+    "pillow>=11.2.1",
+    "pdfminer.six>=20250416",
+    "lxml>=5.4.0",
+    "unstructured>=0.17.2",
+    "supabase>=2.15.1",
+]
+
+[project.packages]
+find = { where = ["langconnect"] }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["langconnect"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8.4",
+    "langgraph-api>=0.0.28",
+    "langgraph-cli>=0.1.75",
+    "pytest-socket>=0.7.0",
+    "pytest-timeout>=2.4.0",
+    "pytest-asyncio>=0.26.0",
+]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+# -ra: Report all extra test outcomes (passed, skipped, failed, etc.)
+# -q: Enable quiet mode for less cluttered output
+# -v: Enable verbose output to display detailed test names and statuses
+# --durations=5: Show the 10 slowest tests after the run (useful for performance tuning)
+addopts = "-ra -q -v --durations=5"
+testpaths = [
+    "tests",
+]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+  "ALL",
+]
+ignore = [
+  "COM812",
+  "ANN001",
+  "ANN201",
+  "ARG001",
+  "B008",
+  "B904",
+  "BLE001",
+  "C901",
+  "D100",
+  "D101",
+  "D104",
+  "D106",
+  "D205",
+  "E501",
+  "EM101",
+  "EM102",
+  "ERA001",
+  "FAST002",
+  "G004",
+  "G201",
+  "PLR0912",
+  "PLR0915",
+  "PLW0603",
+  "RET504",
+  "RUF006",
+  "S104",
+  "T201",
+  "TC002",
+  "TID252",
+  "TD003",
+  "FIX002",
+  "TRY003",
+  "TRY004",
+  "TRY201",
+  "TRY300",
+  "TRY301",
+  "TRY401",
+  "UP007",
+  "W291"
+]
+
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+  "S101",    # bare asserts
+  "ARG",     # unused-argument
+  "FBT",     # boolean-tuple-for-parameter
+  "D104",    # missing docstring in package
+  "PLR2004", # magic-values-in-comparison
+  "S311",    # use of non-crypto RNG
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+

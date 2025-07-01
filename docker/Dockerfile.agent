@@ -1,0 +1,30 @@
+# LangGraph Agent A2A Server Dockerfile
+FROM python:3.13-slim
+
+WORKDIR /app
+
+# 시스템 패키지 설치
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python 패키지 설치
+COPY pyproject.toml uv.lock ./
+RUN pip install uv && \
+    uv sync --no-dev
+
+# 소스 코드 복사
+COPY agents ./agents
+COPY all-search-mcp ./all-search-mcp
+COPY a2a_client ./a2a_client
+
+# 환경 변수 설정
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+# 포트 노출 (각 에이전트별로 다름)
+EXPOSE 8001 8003 8004
+
+# 기본 실행 명령 (docker-compose에서 오버라이드됨)
+CMD ["uv", "run", "python", "-m", "agents.a2a_servers.planning_a2a_server"]

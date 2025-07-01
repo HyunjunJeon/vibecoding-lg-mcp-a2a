@@ -1,0 +1,34 @@
+# MCP Server Dockerfile
+FROM python:3.13-slim
+
+WORKDIR /app
+
+# 시스템 패키지 설치
+RUN apt-get update && apt-get install -y \
+    curl \
+    netcat-traditional \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python 패키지 설치
+COPY pyproject.toml uv.lock ./
+RUN pip install uv && \
+    uv sync --no-dev && \
+    uv pip install pyyaml uvloop
+
+# 소스 코드 복사
+COPY all-search-mcp ./all-search-mcp
+
+# 환경 변수 설정
+ENV PYTHONPATH=/app
+ENV MCP_SERVER_PORT=8000
+ENV UVICORN_PORT=8000
+
+# 헬스체크
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
+    CMD curl -f http://localhost:${MCP_SERVER_PORT}/mcp/ || exit 1
+
+# 포트 노출
+EXPOSE 8000
+
+# 실행
+CMD ["uv", "run", "fastmcp", "run", "all-search-mcp/server.py", "--transport", "streamable-http"]

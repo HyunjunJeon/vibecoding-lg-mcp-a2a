@@ -1,0 +1,84 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv
+ENV/
+env.bak/
+venv.bak/
+.pytest_cache/
+.coverage
+.coverage.*
+.cache
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.cursor/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Docs
+*.md
+docs/
+LICENSE
+
+# Tests
+tests/
+test_*.py
+*_test.py
+
+# Scripts (로컬 실행용)
+scripts/
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+.env.*
+
+# Reports (생성된 보고서)
+reports/
+
+# LangGraph
+.langgraph/
+langgraph_api/
+.langgraph_api/
+
+# Temporary
+tmp/
+temp/
+*.tmp
+
+# Node (if any)
+node_modules/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride

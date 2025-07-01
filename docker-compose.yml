@@ -1,0 +1,207 @@
+services:
+  # PostgreSQL with pgvector
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: ttimes_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-langconnect}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ttimes_network
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: ttimes_redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis123}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ttimes_network
+
+  # LangConnect API Server
+  langconnect:
+    build:
+      context: ./langconnect
+      dockerfile: Dockerfile
+    container_name: ttimes_langconnect
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-langconnect}
+      OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      LANGCONNECT_API_KEY: ${LANGCONNECT_API_KEY:-test-api-key}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8080/health\")'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ttimes_network
+
+  # MCP Server
+  mcp-server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.mcp
+    container_name: ttimes_mcp_server
+    environment:
+      LANGCONNECT_API_URL: http://langconnect:8080
+      TAVILY_API_KEY: ${TAVILY_API_KEY}
+      MCP_SERVER_PORT: 8000
+    ports:
+      - "8090:8000"
+    depends_on:
+      langconnect:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 8000 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ttimes_network
+
+  # Planning Agent A2A Server
+  planning-agent:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.agent
+    container_name: ttimes_planning_agent
+    environment:
+      AGENT_TYPE: planning
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT}
+      AZURE_OPENAI_DEPLOYMENT_NAME: ${AZURE_OPENAI_DEPLOYMENT_NAME:-gpt-4o-preview}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION:-2024-02-15-preview}
+      PLANNING_AGENT_PORT: 8003
+    ports:
+      - "8003:8003"
+    command: ["uv", "run", "python", "agents/a2a_servers/planning_a2a_server.py"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ttimes_network
+
+  # Research Agent A2A Server
+  research-agent:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.agent
+    container_name: ttimes_research_agent
+    environment:
+      AGENT_TYPE: research
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT}
+      AZURE_OPENAI_DEPLOYMENT_NAME: ${AZURE_OPENAI_DEPLOYMENT_NAME:-gpt-4o-preview}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION:-2024-02-15-preview}
+      MCP_SERVER_URL: http://mcp-server:8090/mcp
+      RESEARCH_AGENT_PORT: 8001
+    ports:
+      - "8001:8001"
+    command: ["uv", "run", "python", "agents/a2a_servers/research_a2a_server.py"]
+    depends_on:
+      mcp-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ttimes_network
+
+  # Report Writing Agent A2A Server
+  report-writing-agent:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.agent
+    container_name: ttimes_report_writing_agent
+    environment:
+      AGENT_TYPE: report_writing
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT}
+      AZURE_OPENAI_DEPLOYMENT_NAME: ${AZURE_OPENAI_DEPLOYMENT_NAME:-gpt-4o-preview}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION:-2024-02-15-preview}
+      REPORT_WRITING_AGENT_PORT: 8004
+    ports:
+      - "8004:8004"
+    command: ["uv", "run", "python", "agents/a2a_servers/report_writing_a2a_server.py"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ttimes_network
+
+  # UnifiedResearch Agent (ADK Client)
+  unified-research-agent:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.adk
+    container_name: ttimes_unified_agent
+    environment:
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      PLANNING_AGENT_PORT: 8003
+      RESEARCH_AGENT_PORT: 8001
+      REPORT_WRITING_AGENT_PORT: 8004
+      UNIFIED_AGENT_PORT: 8000
+      # A2A 에이전트 URL (Docker 네트워크 내부)
+      PLANNING_AGENT_URL: http://planning-agent:8003
+      RESEARCH_AGENT_URL: http://research-agent:8001
+      REPORT_WRITING_AGENT_URL: http://report-writing-agent:8004
+    ports:
+      - "8000:8000"
+    command: ["uv", "run", "uvicorn", "a2a_client.unified_research_agent:app", "--host", "0.0.0.0", "--port", "8000"]
+    depends_on:
+      planning-agent:
+        condition: service_healthy
+      research-agent:
+        condition: service_healthy
+      report-writing-agent:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ttimes_network
+
+networks:
+  ttimes_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

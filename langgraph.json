@@ -1,0 +1,18 @@
+{
+  "dependencies": ["."],
+  "env": ".env",
+  "graphs": {
+    "planning": {
+      "path": "agents.graph_builders:planning_graph",
+      "description": "계획 수립 에이전트 - 사용자 요청을 분석하고 작업 계획을 수립합니다"
+    },
+    "research": {
+      "path": "agents.graph_builders:research_graph",
+      "description": "자료조사 에이전트 - 웹 검색과 벡터 DB 검색을 통해 정보를 수집합니다"
+    },
+    "report_writing": {
+      "path": "agents.graph_builders:report_writing_graph",
+      "description": "보고서 작성 에이전트 - 수집된 정보를 바탕으로 구조화된 보고서를 생성합니다"
+    }
+  }
+}

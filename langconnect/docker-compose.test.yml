@@ -1,0 +1,23 @@
+services:
+  postgres_test:
+    image: pgvector/pgvector:pg16
+    container_name: langconnect-postgres-test
+    ports:
+      - "5432:5432"
+    environment:
+      # TODO: Change env variables on CI and in this docker-compose file
+      # to match the dev docker compose file (uses standard postgres/postgres)
+      POSTGRES_USER: langchain
+      POSTGRES_PASSWORD: langchain
+      POSTGRES_DB: langchain_test
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_test_data:
+
